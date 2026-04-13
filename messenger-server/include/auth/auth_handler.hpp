@@ -16,8 +16,8 @@ private:
     SOCKET _socket;
 
     void send_json(const nlohmann::json &j);
-    void send_auth_response(const std::string &type, const std::string &status, const std::string &message, const std::string &username);
-    bool validate_input(const std::string &u_name, const std::string &password, const std::string &type);
+    void send_auth_response(const std::string &status, const std::string &message, const std::string &username);
+    bool validate_input(const std::string &u_name, const std::string &password);
     void raw_send(const std::string &data);
 };
 
