@@ -1,0 +1,46 @@
+# =====================
+# C++ — compilation
+# =====================
+messenger-client/build/
+messenger-server/build/
+ 
+# Files uploaded by users (created at runtime)
+uploads/
+ 
+# # If they happen to be generated in the root directory
+*.exe
+*.dll
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+ 
+# =====================
+# Node.js / Electron UI
+# =====================
+messenger-ui/node_modules/
+ 
+# Electron-builder output files
+messenger-ui/dist/
+messenger-ui/out/
+ 
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+ 
+# =====================
+# System / Editors
+# =====================
+.vscode/
+.idea/
+*.suo
+*.user
+.DS_Store
+Thumbs.db
+desktop.ini
