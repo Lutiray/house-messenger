@@ -1,0 +1,96 @@
+.icon-btn {
+    background: transparent; 
+    border: none; 
+    color: var(--text-muted);
+    font-size: 22px; 
+    padding: 6px; 
+    border-radius: 50%; 
+    display: flex;
+    justify-content: center; 
+    align-items: center; 
+    transition: color 0.2s, transform 0.15s, background 0.2s;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.icon-btn:hover { 
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+    transform: scale(1.1); 
+}
+
+.icon-btn:active { transform: scale(0.95); }
+
+
+.icon-btn.send { color: var(--text-muted); }
+.icon-btn.send:hover { 
+    color: var(--accent); 
+    background: transparent; 
+}
+
+/* --- Context menu --- */
+#context-menu {
+    position: absolute;
+    z-index: 1000;
+    width: 180px;
+    background: #18191c;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ctx-item {
+    padding: 10px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-main);
+    transition: background 0.12s;
+    user-select: none;
+}
+
+.ctx-item:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.ctx-item.delete { color: var(--text-main); }
+
+.ctx-item.delete:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* --- Badges / marks --- */
+.edited-mark {
+    font-size: 10px; 
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.system-text {
+    color: var(--danger) !important;
+}
+
+/* --- Unread badge --- */
+.unread-badge {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    flex-shrink: 0;
+}

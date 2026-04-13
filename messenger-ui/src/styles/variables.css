@@ -1,0 +1,37 @@
+:root {
+    --bg-nav: #16161a;
+    --bg-sidebar: #1d1e24;
+    --bg-chat: #222329;
+    --bg-input: #2e3037;
+    --accent: #9048e8;
+    --accent-hover: #a666f2;
+    --text-main: #f0f0f0;
+    --text-muted: #8e9099;
+    --border-color: #2e3037;
+    --danger: #ed4245;
+    --danger-hover: #c03537;
+    --success: #3ba55d;
+}
+
+body, html {
+    margin: 0; 
+    padding: 0; 
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-main);
+    background-color: var(--bg-nav);
+    overflow: hidden;
+}
+
+.screen { 
+    height: 100vh; 
+    width: 100vw; 
+    display: flex; 
+}
+.hidden { display: none !important; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-input); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+

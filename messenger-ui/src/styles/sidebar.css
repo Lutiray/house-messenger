@@ -1,0 +1,267 @@
+.app-nav {
+    width: 72px;
+    background: var(--bg-nav);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px 0;
+    gap: 10px;
+}
+.nav-item {
+    width: 48px; 
+    height: 48px;
+    background: transparent;
+    border-radius: 50%;
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    font-size: 22px; 
+    color: var(--text-muted);
+    cursor: pointer; 
+    transition: border-radius 0.2s, background 0.2s, color 0.2s;
+    border: none;
+}
+.nav-item:hover {
+    border-radius: 16px;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+}
+
+.nav-item.active { 
+    border-radius: 16px; 
+    background: var(--accent); 
+    color: white; 
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 280px;
+    min-width: 80px; 
+    background: var(--bg-sidebar);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 24px 20px 16px 20px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h2 { 
+    margin: 0; 
+    font-size: 16px; 
+    font-weight: 600; 
+}
+
+.edit-icon { 
+    color: var(--text-muted); 
+    cursor: pointer; 
+    font-size: 18px;
+    transition: color 0.2s;
+}
+
+.edit-icon:hover { color: var(--text-main); }
+
+/* --- Dialog list --- */
+#user-list { 
+    list-style: none;
+    padding: 10px; 
+    margin: 0; 
+    flex-grow: 1; 
+    overflow-y: auto;
+}
+
+#user-list li {
+    padding: 10px; 
+    cursor: pointer;
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    border-radius: 8px; 
+    transition: background 0.1s, color 0.1s;
+    color: var(--text-muted); 
+    font-weight: 500;
+}
+
+#user-list li:hover { 
+    background-color: var(--bg-input); 
+    color: var(--text-main); 
+}
+
+.empty-dialogs-msg {
+    padding: 20px 15px;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.user-info {
+    padding: 16px 20px;
+    background: var(--bg-nav);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.my-profile { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    font-weight: 600;
+}
+
+/* --- Profile / avatar --- */
+.my-avatar-placeholder {
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%;
+    background: var(--bg-input); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.my-avatar-placeholder:hover { 
+    opacity: 0.8; 
+}
+
+.my-avatar-placeholder.has-avatar {
+    background: transparent;
+}
+
+.my-avatar-img {
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* --- Dialog items --- */
+.dialog-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.15s;
+}
+
+.dialog-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dialog-item.active {
+    background-color: rgba(144, 72, 232, 0.15);
+}
+
+.dialog-avatar {
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    margin-right: 12px;
+    object-fit: cover;
+}
+
+.dialog-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 3px;
+}
+
+.dialog-name {
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dialog-time {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
+.dialog-text {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+/* --- Search --- */
+.sidebar-search {
+    padding: 12px 15px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: var(--bg-input);
+    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.search-box:focus-within {
+    border-color: var(--accent);
+}
+
+.search-box i {
+    color: var(--text-muted);
+    margin-right: 10px;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.search-box input {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 0.85rem;
+    width: 100%;
+    outline: none;
+}
+
+.search-box input::placeholder {
+    color: var(--text-muted);
+}
+
+/* --- Exit button --- */
+#exit-btn { 
+    padding: 0; 
+    width: 48px; 
+    height: 48px; 
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: border-radius 0.2s, background 0.2s, color 0.2s;
+}
+
+#exit-btn:hover { 
+    border-radius: 16px;
+    background: var(--danger);
+    color: white;
+}
+

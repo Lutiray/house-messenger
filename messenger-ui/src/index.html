@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Messenger 2026</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div id="auth-screen" class="screen">
+        <div class="auth-box">
+            <h1>Welcome back!</h1>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <div class="auth-buttons">
+                <button id="login-btn">Log In</button>
+                <button id="reg-btn" class="secondary">Sign Up</button>
+            </div>
+            <p id="auth-status"></p>
+        </div>
+    </div>
+
+    <div id="reg-screen" class="screen hidden">
+        <div class="auth-box">
+            <h1>Register</h1>
+            <input type="text" id="reg-username" placeholder="Choose Username">
+            <input type="email" id="reg-email" placeholder="Email (optional)">
+            <input type="tel" id="reg-phone" pattern="[+]?[0-9\s\-]{7,15}" autocomplete="tel" placeholder="Phone (optional)">
+            
+            <input type="password" id="reg-password" placeholder="Password">
+            <input type="password" id="reg-password-confirm" placeholder="Confirm Password">
+            <button id="reg-submit-btn">Register</button>
+            <a href="#" id="go-to-login" class="secondary-link">Already have an account? Log In</a>
+            <p id="reg-status"></p>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="screen hidden">
+        <nav class="app-nav">
+            <div class="nav-item active" title="All chats"><i class="ph ph-chats"></i></div>
+            <div class="nav-item" title="Unread"><i class="ph ph-chat-circle-text"></i></div>
+            <div class="nav-item" title="Favorites"><i class="ph ph-star"></i></div>
+            <div class="nav-item" title="Saved"><i class="ph ph-bookmark-simple"></i></div>
+
+            <div style="flex-grow: 1;"></div>
+            
+            <div class="nav-item" title="Settings"><i class="ph ph-gear"></i></div>
+            <div class="my-avatar-placeholder" title="My Profile">
+                <i class="ph ph-user"></i>
+                </div>
+            <button id="exit-btn" class="nav-item exit-icon" title="Log Out"><i class="ph ph-sign-out"></i></button>
+        </nav>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Recent messages</h2>
+                <i class="ph ph-pencil-simple edit-icon" id="edit-dialogs-btn"></i>
+            </div>
+            <div class="sidebar-search">
+                <div class="search-box">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="user-search-input" placeholder="Search (use @ to find the user)..." autocomplete="off">
+                </div>
+            </div>
+            <ul id="user-list"></ul>
+        </aside>
+
+        <main class="chat-area">
+            <div id="empty-chat-state" class="empty-state">
+                <div class="empty-state-content">
+                    <i class="ph ph-chats-teardrop"></i>
+                    <p>Select a chat to start chatting</p>
+                </div>
+            </div>
+            
+            <div id="active-chat-area" class="hidden">
+                <header class="chat-header">
+                    <div class="chat-title-info">
+                        <div class="chat-title">
+                            <span id="current-chat-name"></span>
+                        </div>
+                        <span id="chat-subtitle" class="chat-subtitle"></span>
+                    </div>
+                    <div class="header-actions">
+                        <button class="icon-btn"><i class="ph ph-magnifying-glass"></i></button>
+                        <button class="icon-btn"><i class="ph ph-phone"></i></button>
+                        <button class="icon-btn"><i class="ph ph-video-camera"></i></button>
+                        <button class="icon-btn" id="toggle-details-btn"><i class="ph ph-dots-three-vertical"></i></button>
+                    </div>
+                </header>
+
+                <div id="messenger-container"></div>
+                <div id="typing-indicator" class="hidden"></div>            
+                <button id="scroll-bottom-btn" class="hidden">
+                    <i class="ph ph-caret-down"></i>
+                </button>
+                <div id="edit-indicator" class="hidden">
+                    <div class="edit-indicator-info">
+                        <i class="ph ph-pencil-simple"></i>
+                        <div class="edit-indicator-text">
+                            <span class="edit-title">Edit message</span>
+                            <span class="edit-preview" id="edit-preview-text"></span>
+                        </div>
+                    </div>
+                    <i class="ph ph-x edit-cancel" id="cancel-edit-btn"></i>
+                </div>
+                <form id="message-form">
+                    <button type="button" class="icon-btn" id="attach-btn"><i class="ph ph-paperclip"></i></button>
+                    <input type="file" id="file-upload-input" class="hidden">
+                    <input type="text" id="message-input" placeholder="Type something..." autocomplete="off">
+                    <button type="button" class="icon-btn"><i class="ph ph-smiley"></i></button>
+                    <button type="submit" id="send-btn" class="icon-btn send"><i class="ph ph-paper-plane-right"></i></button>
+                </form>
+            </div>
+        </main>
+        <aside class="details-panel hidden" id="chat-details-panel">
+            <div class="details-header">
+                <h3>Chat Details</h3>
+                <button class="icon-btn" id="close-details-btn"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="details-content">
+                <p style="color: var(--text-muted); text-align: center; margin-top: 20px;">Media and files will be here</p>
+            </div>
+        </aside>
+    </div>
+
+    <div id="context-menu" class="hidden">
+        <div class="ctx-item" id="ctx-edit">
+            <i class="ph ph-pencil-simple"></i> Edit Message
+        </div>
+        <div class="ctx-item delete" id="ctx-delete">
+            <i class="ph ph-trash"></i> Delete Message
+        </div>
+    </div>
+
+    <script>require('./renderer.js');</script>
+</body>

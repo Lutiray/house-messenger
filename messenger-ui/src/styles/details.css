@@ -1,0 +1,62 @@
+.nav-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 14px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+/* --- Details panel --- */
+.details-panel {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.25s ease, min-width 0.25s ease, opacity 0.25s ease;
+}
+
+.details-panel.hidden {
+    display: none !important;
+}
+
+.details-header {
+    padding: 0 20px;
+    height: 65px;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.details-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.details-content {
+    padding: 20px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.details-empty {
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 24px;
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
