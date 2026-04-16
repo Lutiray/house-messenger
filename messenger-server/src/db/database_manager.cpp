@@ -211,16 +211,34 @@ json DatabaseManager::getDialogsList(const std::string& my_nick) {
     if (my_id == -1) return {{"type", "dialogs_list"}, {"data", dialogs}};
 
     StmtGuard stmt;
-    if (sqlite3_prepare_v2(_db, SQL::GET_DIALOGS, -1, stmt.ptr(), nullptr) != SQLITE_OK) {
-        Logger::error("GET_DIALOGS SQL Error: " + std::string(sqlite3_errmsg(_db)));    
+    if (sqlite3_prepare_v2(_db, SQL::GET_DIALOGS, -1, stmt.ptr(), nullptr) != SQLITE_OK)
         return {{"type", "dialogs_list"}, {"data", dialogs}};
-}
 
     sqlite3_bind_int(stmt, 1, my_id);
     sqlite3_bind_int(stmt, 2, my_id);
+    sqlite3_bind_int(stmt, 3, my_id);
+    sqlite3_bind_int(stmt, 4, my_id);
         
     while (stmt.step() == SQLITE_ROW) {
-        dialogs.push_back(parseMessageRow(stmt));
+        json d;
+        d["id"] = sqlite3_column_int(stmt, 0);
+        
+        const char* chat_name = (const char*)sqlite3_column_text(stmt, 1);
+        const char* content = (const char*)sqlite3_column_text(stmt, 2);
+        const char* time = (const char*)sqlite3_column_text(stmt, 3);
+        int is_edited = sqlite3_column_int(stmt, 4);
+        const char* last_sender = (const char*)sqlite3_column_text(stmt, 5);
+        
+        d["chat_name"] = chat_name ? chat_name : "Unknown";
+        d["text"] = content ? content : "";
+        d["time"] = time ? time : "";
+        d["is_edited"] = is_edited;
+        d["last_sender"] = last_sender ? last_sender : "";
+        d["is_read_by_me"] = sqlite3_column_int(stmt, 6);
+        d["is_read_by_them"] = sqlite3_column_int(stmt, 7);
+        d["unread_count"] = sqlite3_column_int(stmt, 8);
+        
+        dialogs.push_back(d);
     }
 
     return {{"type", "dialogs_list"}, {"data", dialogs}};
