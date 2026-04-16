@@ -21,10 +21,18 @@ private:
 
     void cmd_whisper(const std::string& target_nick, const std::string& message);
     void reply(const std::string& msg);
+    void handle_ping();
+    void handle_search(const json &j);
+    void handle_typing(const json &j);
+    void handle_delete(const json &j);
+    void handle_edit(const json &j);
+    void handle_mark_read(const json &j);
+    void handle_send_message(const json &j);
+    void handle_get_history(const json &j);
+    void handle_get_dialogs();
 
     json build_chat_message(const std::string &text, const std::string &target, bool is_private = false, int msg_id = -1);
 
-    static std::string trim(const std::string& str);
     IMessageSender& _sender;
     IUserRegistry& _registry;
     IDatabaseService& _db;
