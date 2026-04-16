@@ -11,45 +11,45 @@ let hasMoreHistory = true;
 const onlineUsers = new Set();
 
 // --- DOM-elements ---
-const authScreen            = document.getElementById('auth-screen');
-const chatScreen            = document.getElementById('chat-screen');
-const regScreen             = document.getElementById('reg-screen');
-const authStatus            = document.getElementById('auth-status');
-const regStatus             = document.getElementById('reg-status');
-const messageForm           = document.getElementById('message-form');
-const messageInput          = document.getElementById('message-input');
-const messagesContainer     = document.getElementById('messenger-container');
-const userListContainer     = document.getElementById('user-list');
+const authScreen = document.getElementById('auth-screen');
+const chatScreen = document.getElementById('chat-screen');
+const regScreen = document.getElementById('reg-screen');
+const authStatus  = document.getElementById('auth-status');
+const regStatus = document.getElementById('reg-status');
+const messageForm = document.getElementById('message-form');
+const messageInput = document.getElementById('message-input');
+const messagesContainer = document.getElementById('messenger-container');
+const userListContainer = document.getElementById('user-list');
 
-const currentChatNameUI     = document.getElementById('current-chat-name');
-const myAvatarPlaceholder   = document.querySelector('.my-avatar-placeholder');
-const typingIndicator       = document.getElementById('typing-indicator');
+const currentChatNameUI = document.getElementById('current-chat-name');
+const myAvatarPlaceholder = document.querySelector('.my-avatar-placeholder');
+const typingIndicator = document.getElementById('typing-indicator');
 
 // Buttons
-const regBtn                = document.getElementById('reg-btn');
-const goToLoginBtn          = document.getElementById('go-to-login');
-const loginBtn              = document.getElementById('login-btn');
-const regSubmitBtn          = document.getElementById('reg-submit-btn');
-const exitBtn               = document.getElementById('exit-btn');
+const regBtn = document.getElementById('reg-btn');
+const goToLoginBtn = document.getElementById('go-to-login');
+const loginBtn = document.getElementById('login-btn');
+const regSubmitBtn = document.getElementById('reg-submit-btn');
+const exitBtn  = document.getElementById('exit-btn');
 const scrollBottomBtn = document.getElementById('scroll-bottom-btn');
 
 // Fields of auth
-const loginUserInp          = document.getElementById('username');
-const loginPassInp          = document.getElementById('password');
-const regUserInp            = document.getElementById('reg-username');
-const regPassInp            = document.getElementById('reg-password');
-const regPassConfInp        = document.getElementById('reg-password-confirm');
-const regEmailInp           = document.getElementById('reg-email');
-const regPhoneInp           = document.getElementById('reg-phone');
+const loginUserInp = document.getElementById('username');
+const loginPassInp = document.getElementById('password');
+const regUserInp = document.getElementById('reg-username');
+const regPassInp = document.getElementById('reg-password');
+const regPassConfInp = document.getElementById('reg-password-confirm');
+const regEmailInp = document.getElementById('reg-email');
+const regPhoneInp = document.getElementById('reg-phone');
 
-const emptyChatState        = document.getElementById('empty-chat-state');
-const activeChatArea        = document.getElementById('active-chat-area');
-const chatSubtitleUI        = document.getElementById('chat-subtitle');
+const emptyChatState = document.getElementById('empty-chat-state');
+const activeChatArea = document.getElementById('active-chat-area');
+const chatSubtitleUI = document.getElementById('chat-subtitle');
 
-const editIndicator         = document.getElementById('edit-indicator');
-const editPreviewText       = document.getElementById('edit-preview-text');
-const cancelEditBtn         = document.getElementById('cancel-edit-btn');
-const searchInput           = document.getElementById('user-search-input');
+const editIndicator = document.getElementById('edit-indicator');
+const editPreviewText = document.getElementById('edit-preview-text');
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+const searchInput = document.getElementById('user-search-input');
 
 const toggleDetailsBtn = document.getElementById('toggle-details-btn');
 const closeDetailsBtn = document.getElementById('close-details-btn');
@@ -533,6 +533,17 @@ if (searchInput) {
             requestDialogsDebounced(0);
         }
     });
+}
+
+// --- The btn Saved Messages ---
+const savedBtn = document.querySelector('.nav-item[title="Saved"]');
+if (savedBtn) {
+    savedBtn.onclick = () => {
+        document.querySelectorAll('.app-nav .nav-item').forEach(n => n.classList.remove('active'));
+        savedBtn.classList.add('active');
+        openChat(myNickname);
+        currentChatNameUI.textContent = "Saved Messages";
+    };
 }
 
 // --- Details panel ---
