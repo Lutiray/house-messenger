@@ -1,6 +1,12 @@
 #include "db/database_manager.hpp"
+#include "db/sql_queries.hpp"
+#include "db/stmt_guard.hpp"
 #include "utils/logger.hpp"
+#include "picosha2.h"
 #include <chrono>
+#include <random>
+#include <iomanip>
+#include <sstream>
 
 using json = nlohmann::json;
 
@@ -16,7 +22,10 @@ bool DatabaseManager::open() {
         Logger::error("Cant't open database: " + std::string(sqlite3_errmsg(_db)));
         return (false);
     }
-    sqlite3_exec(_db, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
+
+    sqlite3_exec(_db, "PRAGMA journal_mode=WAL;",    nullptr, nullptr, nullptr);
+    sqlite3_exec(_db, "PRAGMA foreign_keys = ON;",   nullptr, nullptr, nullptr);
+    sqlite3_exec(_db, "PRAGMA synchronous = NORMAL;", nullptr, nullptr, nullptr);
     return true;
 }
 
@@ -31,222 +40,193 @@ bool DatabaseManager::close() {
 
 bool DatabaseManager::init() {
     std::lock_guard<std::mutex> lock(_db_mutex);
-    char* errMsg = nullptr;
 
     int current_version = 0;
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(_db, "PRAGMA user_version;", -1, &stmt, nullptr) == SQLITE_OK) {
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            current_version = sqlite3_column_int(stmt, 0);
+    {
+        StmtGuard stmt;
+        if (sqlite3_prepare_v2(_db, "PRAGMA user_version;", -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+            if (stmt.step() == SQLITE_ROW) {
+                current_version = sqlite3_column_int(stmt, 0);
+            }
         }
-        sqlite3_finalize(stmt);
     }
 
-    if (current_version < 2) {
-        Logger::info("Migrating database to version 2 (Channel Architecture)...");
+    if (current_version >= 3) return true;
+    Logger::info("Migrating database to version 3...");
+ 
+    const char* migrations[] = {
+        SQL::CREATE_USERS,
+        SQL::CREATE_CHANNELS,
+        SQL::CREATE_CHANNEL_MEMBERS,
+        SQL::CREATE_MESSAGES,
+        SQL::CREATE_INDEXES
+    };
 
-        const char* users_sql = "CREATE TABLE IF NOT EXISTS users ("
-                                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                                "username TEXT UNIQUE NOT NULL,"
-                                "password TEXT NOT NULL,"
-                                "email TEXT UNIQUE,"         
-                                "phone TEXT UNIQUE"          
-                                ");";
-
-        const char* channels_sql = "CREATE TABLE IF NOT EXISTS channels ("
-                                   "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                                   "is_group INTEGER DEFAULT 0,"
-                                   "name TEXT"
-                                   ");";
-        
-        const char* members_sql = "CREATE TABLE IF NOT EXISTS channel_members ("
-                                  "channel_id INTEGER,"
-                                  "user_id INTEGER,"
-                                  "last_read_msg_id INTEGER DEFAULT 0,"
-                                  "PRIMARY KEY(channel_id, user_id),"
-                                  "FOREIGN KEY(channel_id) REFERENCES channels(id),"
-                                  "FOREIGN KEY(user_id) REFERENCES users(id)"
-                                  ");";
-        
-        const char* msgs_sql = "CREATE TABLE IF NOT EXISTS messages ("
-                               "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                               "channel_id INTEGER,"
-                               "sender_id INTEGER,"
-                               "content TEXT,"
-                               "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,"
-                               "FOREIGN KEY(channel_id) REFERENCES channels(id),"
-                               "FOREIGN KEY(sender_id) REFERENCES users(id)"
-                               ");";
-        
-        if (sqlite3_exec(_db, users_sql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-            sqlite3_exec(_db, channels_sql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-            sqlite3_exec(_db, members_sql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-            sqlite3_exec(_db, msgs_sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            Logger::error("SQL Init Error: " + std::string(errMsg)); 
+    char* errMsg = nullptr;
+    for (const char* sql : migrations) {
+        if (sqlite3_exec(_db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            Logger::error("SQL Init Error: " + std::string(errMsg));
             sqlite3_free(errMsg);
-            return (false);
+            return false;
         }
-        sqlite3_exec(_db, "PRAGMA user_version = 2;", nullptr, nullptr, nullptr);
     }
-    return (true);
+    sqlite3_exec(_db, "PRAGMA user_version = 3;", nullptr, nullptr, nullptr);
+    return true;
 }
 
 json DatabaseManager::parseMessageRow(sqlite3_stmt* stmt) {
     json m;
     m["id"] = sqlite3_column_int(stmt, 0);
 
-    const char* user = (const char*)sqlite3_column_text(stmt, 1);
+    const char* nameOrSender = (const char*)sqlite3_column_text(stmt, 1);
     const char* text = (const char*)sqlite3_column_text(stmt, 2);
     const char* time = (const char*)sqlite3_column_text(stmt, 3);
 
-    m["from"] = user ? user : "Unknown";
+    m["from"] = nameOrSender ? nameOrSender : "Unknown";
     m["text"] = text ? text : "";
     m["time"] = time ? time : "";
-    m["is_read"] = sqlite3_column_int(stmt, 4);
-
+    m["is_edited"] = sqlite3_column_int(stmt, 4);
+    m["is_read"] = sqlite3_column_int(stmt, 5);
     return m;
+}
+
+std::string DatabaseManager::generateSalt() {
+    auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::mt19937_64 rng(seed ^ reinterpret_cast<uint64_t>(this));
+    std::ostringstream ss;
+    ss << std::hex << rng() << rng();
+    return ss.str().substr(0, 16);
+}
+
+std::string DatabaseManager::hashPassword(const std::string& password, const std::string& salt) {
+    return picosha2::hash256_hex_string(salt + password);
 }
 
 bool DatabaseManager::registerUser(const std::string& username, const std::string& password,
                                 const std::string& email, const std::string& phone) {
     std::lock_guard<std::mutex> lock(_db_mutex);
-    std::string hashedPassword = hashPassword(password);
 
-    const char* sql = "INSERT INTO users (username, password, email, phone) VALUES (?, ?, ?, ?);";
-    sqlite3_stmt* stmt;
+    std::string salt = generateSalt();
+    std::string hashed = hashPassword(password, salt);
 
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        return (false);
-    }
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::INSERT_USER, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, hashedPassword.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, email.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, phone.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, hashed.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, salt.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, email.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, phone.c_str(), -1, SQLITE_STATIC);
 
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    sqlite3_finalize(stmt);
-    return (success);
+    return stmt.step() == SQLITE_DONE;
 }
 
 bool DatabaseManager::checkAuth(const std::string& username, const std::string& password) {
     std::lock_guard<std::mutex> lock(_db_mutex);
-    std::string hashedPassword = hashPassword(password);
 
-    const char* sql = "SELECT password FROM users WHERE username = ?;";
-    sqlite3_stmt* stmt;
-    bool authenticated = false;
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::SELECT_USER_AUTH, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
 
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            const char* stored_hash = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            if (stored_hash) {
-                authenticated = (stored_hash == hashedPassword);
-            }
-        }
-    }
-    sqlite3_finalize(stmt);
-    return (authenticated);
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    if (stmt.step() != SQLITE_ROW) return false;
+            
+    const char* stored_hash = (const char*)sqlite3_column_text(stmt, 0);
+    const char* stored_salt = (const char*)sqlite3_column_text(stmt, 1);
+    if (!stored_hash || !stored_salt) return false;
+
+    return hashPassword(password, std::string(stored_salt)) == std::string(stored_hash);
 }
 
 int DatabaseManager::getUserIdInternal(const std::string& username) {
-    const char* sql = "SELECT id FROM users WHERE username = ?;";
-    sqlite3_stmt* stmt;
-    int id = -1;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            id = sqlite3_column_int(stmt, 0);
-        }
-    }
-    sqlite3_finalize(stmt);
-    return (id);
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::SELECT_USER_ID, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return -1;
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    return (stmt.step() == SQLITE_ROW) ? sqlite3_column_int(stmt, 0) : -1;
 }
 
 int DatabaseManager::getUserId(const std::string& username) {
     std::lock_guard<std::mutex> lock(_db_mutex);
-    return (getUserIdInternal(username));
+    return getUserIdInternal(username);
 }
 
-int DatabaseManager::saveMessage(const std::string& sender_nick, const std::string& content, const std::string& receiver_nick) {
+int DatabaseManager::saveMessage(const std::string& sender_nick, const std::string& content,
+                                 const std::string& receiver_nick) {
     std::lock_guard<std::mutex> lock(_db_mutex);
-
-    int sender_id = getUserIdInternal(sender_nick);
-    if (sender_id == -1) return -1;
-
-    int channel_id = 0;
-    if (!receiver_nick.empty()) {
-        int receiver_id = getUserIdInternal(receiver_nick);
-        if (receiver_id == -1) return -1; 
-        channel_id = getOrCreateDirectChannel(sender_id, receiver_id);
-    } else return -1;
-
-    const char* sql = "INSERT INTO messages (channel_id, sender_id, content) VALUES (?, ?, ?);";
-    sqlite3_stmt* stmt;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) != SQLITE_OK) return (false);
-
-    sqlite3_bind_int(stmt, 1, channel_id);
-    sqlite3_bind_int(stmt, 2, sender_id);
+ 
+    int sender_id   = getUserIdInternal(sender_nick);
+    int receiver_id = getUserIdInternal(receiver_nick);
+    if (sender_id == -1 || receiver_id == -1) return -1;
+ 
+    int channel_id = getOrCreateDirectChannel(sender_id, receiver_id);
+ 
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::INSERT_MESSAGE, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return -1;
+ 
+    sqlite3_bind_int (stmt, 1, channel_id);
+    sqlite3_bind_int (stmt, 2, sender_id);
     sqlite3_bind_text(stmt, 3, content.c_str(), -1, SQLITE_STATIC);
-    
-    int new_msg_id = -1;
-    if (sqlite3_step(stmt) == SQLITE_DONE) {
-        new_msg_id = (int)sqlite3_last_insert_rowid(_db);
-    }
-    sqlite3_finalize(stmt);
-    return new_msg_id;
+ 
+    if (stmt.step() != SQLITE_DONE) return -1;
+    return (int)sqlite3_last_insert_rowid(_db);
 }
 
-std::string DatabaseManager::hashPassword(const std::string& password) {
-    std::string salt = "super_secret_salt_123";
-    std::string salted_pass = password + salt;
-    
-    size_t h1 = std::hash<std::string>{}(salted_pass);
-    size_t h2 = std::hash<std::string>{}(salted_pass + "pepper");
-    
-    std::stringstream ss;
-    ss << std::hex << h1 << h2;
-    return ss.str();
+bool DatabaseManager::deleteMessage(int msg_id, const std::string& owner_nick) {
+    std::lock_guard<std::mutex> lock(_db_mutex);
+    int owner_id = getUserIdInternal(owner_nick);
+    if (owner_id == -1) return false;
+
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::DELETE_MESSAGE, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
+
+    sqlite3_bind_int(stmt, 1, msg_id);
+    sqlite3_bind_int(stmt, 2, owner_id);
+    return stmt.step() == SQLITE_DONE;
+}
+
+bool DatabaseManager::editMessage(int msg_id, const std::string& owner_nick, const std::string& new_text) {
+    std::lock_guard<std::mutex> lock(_db_mutex);
+    int owner_id = getUserIdInternal(owner_nick);
+    if (owner_id == -1) return false;
+
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::EDIT_MESSAGE, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
+
+    sqlite3_bind_text(stmt, 1, new_text.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, msg_id);
+    sqlite3_bind_int(stmt, 3, owner_id);
+    return stmt.step() == SQLITE_DONE;
 }
 
 json DatabaseManager::getDialogsList(const std::string& my_nick) {
     std::lock_guard<std::mutex> lock(_db_mutex);
     json dialogs = json::array();
-    int my_id = getUserIdInternal(my_nick);
 
+    int my_id = getUserIdInternal(my_nick);
     if (my_id == -1) return {{"type", "dialogs_list"}, {"data", dialogs}};
 
-    const char* sql = "SELECT m.id, "
-                      "  (SELECT u2.username FROM channel_members cm2 JOIN users u2 ON cm2.user_id = u2.id WHERE cm2.channel_id = c.id AND cm2.user_id != ?) as chat_name, "
-                      "  m.content, m.timestamp, "
-                      "  CASE WHEN m.id <= cm.last_read_msg_id THEN 1 ELSE 0 END as is_read "
-                      "FROM channel_members cm "
-                      "JOIN channels c ON cm.channel_id = c.id "
-                      "JOIN ("
-                      "  SELECT channel_id, MAX(id) as last_msg_id "
-                      "  FROM messages GROUP BY channel_id"
-                      ") latest ON c.id = latest.channel_id "
-                      "JOIN messages m ON m.id = latest.last_msg_id "
-                      "WHERE cm.user_id = ? "
-                      "ORDER BY m.timestamp DESC;";
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_int(stmt, 1, my_id);
-        sqlite3_bind_int(stmt, 2, my_id);
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::GET_DIALOGS, -1, stmt.ptr(), nullptr) != SQLITE_OK) {
+        Logger::error("GET_DIALOGS SQL Error: " + std::string(sqlite3_errmsg(_db)));    
+        return {{"type", "dialogs_list"}, {"data", dialogs}};
+}
+
+    sqlite3_bind_int(stmt, 1, my_id);
+    sqlite3_bind_int(stmt, 2, my_id);
         
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            dialogs.push_back(parseMessageRow(stmt));
-        }
+    while (stmt.step() == SQLITE_ROW) {
+        dialogs.push_back(parseMessageRow(stmt));
     }
-    sqlite3_finalize(stmt);
 
     return {{"type", "dialogs_list"}, {"data", dialogs}};
 }
 
-json DatabaseManager::getChatHistory(const std::string& my_nick, const std::string& other_nick) {
+json DatabaseManager::getChatHistory(const std::string& my_nick, const std::string& other_nick, int before_id) {
     std::lock_guard<std::mutex> lock(_db_mutex);
     json data = json::array();
 
@@ -256,144 +236,103 @@ json DatabaseManager::getChatHistory(const std::string& my_nick, const std::stri
 
     int channel_id = getOrCreateDirectChannel(my_id, other_id);
 
-    const char* sql = "SELECT m.id, u.username, m.content, m.timestamp, "
-                      "  CASE WHEN m.id <= (SELECT last_read_msg_id FROM channel_members WHERE channel_id = ? AND user_id = ?) THEN 1 ELSE 0 END as is_read "
-                      "FROM messages m JOIN users u ON m.sender_id = u.id "
-                      "WHERE m.channel_id = ? "
-                      "ORDER BY m.timestamp ASC LIMIT 100;";
-    
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_int(stmt, 1, channel_id);
-        sqlite3_bind_int(stmt, 2, other_id);
-        sqlite3_bind_int(stmt, 3, channel_id);
-        
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            data.push_back(parseMessageRow(stmt));
-        }
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::GET_HISTORY, -1, stmt.ptr(), nullptr) != SQLITE_OK) {
+        Logger::error("GET_HISTORY SQL Error: " + std::string(sqlite3_errmsg(_db)));
+        return {{"type", "history"}, {"data", data}};
     }
-    sqlite3_finalize(stmt);
-    
+
+    sqlite3_bind_int(stmt, 1, channel_id);
+    sqlite3_bind_int(stmt, 2, my_id);
+    sqlite3_bind_int(stmt, 3, channel_id);
+    sqlite3_bind_int(stmt, 4, before_id);
+    sqlite3_bind_int(stmt, 5, before_id);
+ 
+    while (stmt.step() == SQLITE_ROW)
+        data.push_back(parseMessageRow(stmt));
+ 
     return {{"type", "history"}, {"data", data}, {"chat_with", other_nick}};
 }
 
-bool DatabaseManager::deleteMessage(int msg_id, const std::string& owner_nick) {
-    std::lock_guard<std::mutex> lock(_db_mutex);
-    int owner_id = getUserIdInternal(owner_nick);
-    if (owner_id == -1) return false;
-
-    const char* sql = "DELETE FROM messages WHERE id = ? AND sender_id = ?;";
-    sqlite3_stmt* stmt;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
-
-    sqlite3_bind_int(stmt, 1, msg_id);
-    sqlite3_bind_int(stmt, 2, owner_id);
-
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    sqlite3_finalize(stmt);
-    return success;
-}
-
-bool DatabaseManager::editMessage(int msg_id, const std::string& owner_nick, const std::string& new_text) {
-    std::lock_guard<std::mutex> lock(_db_mutex);
-    int owner_id = getUserIdInternal(owner_nick);
-    if (owner_id == -1) return false;
-
-    const char* sql = "UPDATE messages SET content = ? WHERE id = ? AND sender_id = ?;";
-    sqlite3_stmt* stmt;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
-    
-    sqlite3_bind_text(stmt, 1, new_text.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, msg_id);
-    sqlite3_bind_int(stmt, 3, owner_id);
-    
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    sqlite3_finalize(stmt);
-    return success;
+int DatabaseManager::findDirectChannel(int user1_id, int user2_id) {
+    int min_id = (((user1_id < user2_id)) ? user1_id : user2_id);
+    int max_id = (((user1_id > user2_id)) ? user1_id : user2_id);
+    std::string name = "dm_" + std::to_string(min_id) + "_" + std::to_string(max_id);
+ 
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::FIND_DIRECT_CHANNEL, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return -1;
+ 
+    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
+    return (stmt.step() == SQLITE_ROW) ? sqlite3_column_int(stmt, 0) : -1;
 }
 
 bool DatabaseManager:: markChatAsRead(const std::string& sender_nick, const std::string& receiver_nick) {
     std::lock_guard<std::mutex> lock(_db_mutex);
+
     int sender_id = getUserIdInternal(sender_nick);
     int receiver_id = getUserIdInternal(receiver_nick);
     if (sender_id == -1 || receiver_id == -1) return false;
 
     int channel_id = getOrCreateDirectChannel(sender_id, receiver_id);
-   const char* sql = "UPDATE channel_members SET last_read_msg_id = "
-                      "(SELECT MAX(id) FROM messages WHERE channel_id = ?) "
-                      "WHERE channel_id = ? AND user_id = ?;";
-    sqlite3_stmt* stmt;
 
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::MARK_READ, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
 
     sqlite3_bind_int(stmt, 1, channel_id);
     sqlite3_bind_int(stmt, 2, channel_id);
     sqlite3_bind_int(stmt, 3, receiver_id);
-
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    sqlite3_finalize(stmt);
-    return success;
+    return stmt.step() == SQLITE_DONE;
 }
 
 int DatabaseManager::getOrCreateDirectChannel(int user1_id, int user2_id) {
-    int  min_id = (user1_id < user2_id) ? user1_id : user2_id;
-    int max_id = (user1_id > user2_id) ? user1_id : user2_id;
-    std::string dm_name = "dm_" + std::to_string(min_id) + "_" + std::to_string(max_id);
+    int existing = findDirectChannel(user1_id, user2_id);
+    if (existing != -1) return existing;
+    
+    int min_id = (((user1_id < user2_id)) ? user1_id : user2_id);
+    int max_id = (((user1_id > user2_id)) ? user1_id : user2_id);
+    std::string name = "dm_" + std::to_string(min_id) + "_" + std::to_string(max_id);
 
-    const char* find_sql = "SELECT id FROM channels WHERE name = ? AND is_group = 0;";
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(_db, find_sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, dm_name.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            int chan_id = sqlite3_column_int(stmt, 0);
-            sqlite3_finalize(stmt);
-            return chan_id;
+    {
+        StmtGuard stmt;
+        if (sqlite3_prepare_v2(_db, SQL::INSERT_CHANNEL, -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
+            stmt.step();
         }
     }
-    sqlite3_finalize(stmt);
-
-    const char* insert_chan = "INSERT INTO channels (is_group, name) VALUES (0, ?);";
-    if (sqlite3_prepare_v2(_db, insert_chan, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, dm_name.c_str(), -1, SQLITE_STATIC);
-        sqlite3_step(stmt);
+    int new_id = (int)sqlite3_last_insert_rowid(_db);
+ 
+    {
+        StmtGuard stmt;
+        if (sqlite3_prepare_v2(_db, SQL::INSERT_CHANNEL_MEMBERS, -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+            sqlite3_bind_int(stmt, 1, new_id);
+            sqlite3_bind_int(stmt, 2, user1_id);
+            sqlite3_bind_int(stmt, 3, new_id);
+            sqlite3_bind_int(stmt, 4, user2_id);
+            stmt.step();
+        }
     }
-    int new_chan_id = (int)sqlite3_last_insert_rowid(_db);
-    sqlite3_finalize(stmt);
-
-    const char* insert_members = "INSERT INTO channel_members (channel_id, user_id) VALUES (?, ?), (?, ?);";
-    if (sqlite3_prepare_v2(_db, insert_members, -1, &stmt, nullptr) == SQLITE_OK) {
-        sqlite3_bind_int(stmt, 1, new_chan_id);
-        sqlite3_bind_int(stmt, 2, user1_id);
-        sqlite3_bind_int(stmt, 3, new_chan_id);
-        sqlite3_bind_int(stmt, 4, user2_id);
-        sqlite3_step(stmt);
-    }
-    sqlite3_finalize(stmt);
-
-    return new_chan_id;
+    return new_id;
 }
 
 json DatabaseManager::searchUsers(const std::string& query) {
     std::lock_guard<std::mutex> lock(_db_mutex);
     json users = json::array();
 
-    const char* sql = "SELECT username FROM users WHERE username LIKE ? LIMIT 15;";
-    sqlite3_stmt* stmt;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-        std::string like_query = query + "%";
-        sqlite3_bind_text(stmt, 1, like_query.c_str(), -1, SQLITE_STATIC);
-
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            const char* name = (const char*)sqlite3_column_text(stmt, 0);
-            if (name) {
-                users.push_back(name);
-            }
-        }
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::SEARCH_USERS, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return {{"type", "search_results"}, {"users", users}};
+ 
+    std::string like_query = query + "%";
+    sqlite3_bind_text(stmt, 1, like_query.c_str(), -1, SQLITE_STATIC);
+ 
+    while (stmt.step() == SQLITE_ROW) {
+        const char* name = (const char*)sqlite3_column_text(stmt, 0);
+        if (name) users.push_back(name);
     }
-    sqlite3_finalize(stmt);
-
+ 
     return {{"type", "search_results"}, {"users", users}};
 }
+
+
