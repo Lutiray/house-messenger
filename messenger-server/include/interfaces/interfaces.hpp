@@ -53,7 +53,7 @@ public:
     virtual bool editMessage(int msg_id, const std::string& owner_nick, const std::string& new_text) = 0;
     virtual bool markChatAsRead(const std::string &sender_nick, const std::string &receiver_nick) = 0;
 
-    virtual json getChatHistory(const std::string &my_nick, const std::string &other_nick) = 0;
+    virtual json getChatHistory(const std::string &my_nick, const std::string &other_nick, int before_id) = 0;
     virtual json getDialogsList(const std::string& my_nick) = 0;
     virtual json searchUsers(const std::string &query) = 0;
 };
