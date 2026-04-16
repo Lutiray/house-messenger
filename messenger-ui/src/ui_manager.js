@@ -37,11 +37,11 @@ class UIManager {
         const body = document.createElement('div');
         body.className = 'msg-text';
         const isFileUrl = text.startsWith('http://localhost:') && text.includes('/files/');
-        
         if (!isFileUrl) {
             body.textContent = text;
             return body;
         }
+
         const ext = text.split('.').pop().toLowerCase();
         const parts = text.split('/');
         const filenameWithTime = parts[parts.length - 1];
@@ -61,8 +61,7 @@ class UIManager {
             const img = document.createElement('img');
             img.src = text;
             img.alt = originalName;
-
-            img.onclick = () => window.open(text, '_blank');
+            img.onclick = () => UIManager.openLightbox(text);
             wrapper.appendChild(img);
             body.appendChild(wrapper);
         } 
@@ -75,7 +74,6 @@ class UIManager {
             video.autoplay = true;
             video.loop = true;
             video.setAttribute('playsinline', '');
-
             video.onclick = (e) => {
                 e.preventDefault();
                 video.muted = !video.muted;
@@ -106,8 +104,41 @@ class UIManager {
         return body;
     }
 
+    static openLightbox(imageUrl) {
+        const lightbox = document.getElementById('image-lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const overlay = document.querySelector('.lightbox-overlay');
+        const closeBtn = document.getElementById('lightbox-close');
+
+        lightboxImg.src = imageUrl;
+        lightbox.classList.remove('hidden');
+
+        const closeLightbox = () => {
+            lightbox.classList.add('hidden');
+            lightboxImg.src = '';
+        };
+
+        closeBtn.onclick = closeLightbox;
+        overlay.onclick = closeLightbox;
+
+        document.addEventListener('keydown', function enEsc(e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+                document.removeEventListener('keydown', onEsc);
+            }
+        });
+    }
+
+    static _insertAfterAnchor(container, element, anchorElement) {
+        if (anchorElement) {
+            anchorElement.after(element);
+        } else {
+            container.appendChild(element);
+        }
+    }
+
     static addMessage(container, from, text, msgId, timestampStr, isOwn = false, 
-                        isRead = false, observer = null) {
+                        isRead = false, observer = null, insertAfterAnchor = null) {
         if (!container) return;
         
         const msgDiv = document.createElement('div');
@@ -120,7 +151,8 @@ class UIManager {
             body.innerText = text;
             msgDiv.appendChild(body);
             container.appendChild(msgDiv);
-            return;
+            UIManager._insertAfterAnchor(container, msgDiv, insertAfterAnchor);
+            return msgDiv;
         }
 
         if (isOwn) {
@@ -135,6 +167,7 @@ class UIManager {
         const avatarImg = document.createElement('img');
         avatarImg.className = 'msg-avatar';
         avatarImg.src = UIManager.getAvatarUrl(from, 40);
+        avatarImg.alt = from;
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'msg-content';
@@ -168,12 +201,10 @@ class UIManager {
 
         contentDiv.appendChild(header);
         contentDiv.appendChild(body);
-
         msgDiv.appendChild(avatarImg);
         msgDiv.appendChild(contentDiv);
         
-        container.appendChild(msgDiv);
-
+        UIManager._insertAfterAnchor(container, msgDiv, insertAfterAnchor);
         return msgDiv;
     }
 
@@ -190,46 +221,49 @@ class UIManager {
         }
 
         dialogsArray.forEach(dialog => {
-            const chatName = dialog.from; 
-
-            const li = document.createElement('li');
-            li.className = 'dialog-item'; 
-
-            const avatar = document.createElement('img');
-             avatar.src = UIManager.getAvatarUrl(chatName, 40);
-            avatar.className = 'dialog-avatar';
-            avatar.alt = chatName;
-            
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'dialog-info';
-            
-            const nameTimeDiv = document.createElement('div');
-            nameTimeDiv.className = 'dialog-header';
-            
-            const nameSpan = document.createElement('span');
-            nameSpan.innerText = chatName;
-            nameSpan.className = 'dialog-name';
-            
-            const timeSpan = document.createElement('span');
-            timeSpan.textContent = UIManager.formatTime(dialog.time);
-            timeSpan.className = 'dialog-time';
-
-            nameTimeDiv.appendChild(nameSpan);
-            nameTimeDiv.appendChild(timeSpan);
-            
-            const textSpan = document.createElement('span');
-            textSpan.textContent = dialog.text;
-            textSpan.className = 'dialog-text';
-
-            infoDiv.appendChild(nameTimeDiv);
-            infoDiv.appendChild(textSpan);
-
-            li.appendChild(avatar);
-            li.appendChild(infoDiv);
-            
-            li.onclick = () => onChatClick(chatName);
-            listElement.appendChild(li);
+            listElement.appendChild(
+                UIManager._buildDialogItem(dialog.from, dialog, onChatClick)
+            );
         });
+    }
+
+    static _buildDialogItem(chatName, dialog, onChatClick) {
+        const li = document.createElement('li');
+        li.className = 'dialog-item'; 
+
+        const avatar = document.createElement('img');
+        avatar.src = UIManager.getAvatarUrl(chatName, 40);
+        avatar.className = 'dialog-avatar';
+        avatar.alt = chatName;
+            
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'dialog-info';
+            
+        const nameTimeDiv = document.createElement('div');
+        nameTimeDiv.className = 'dialog-header';
+            
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent  = chatName;
+        nameSpan.className = 'dialog-name';
+            
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = UIManager.formatTime(dialog.time);
+        timeSpan.className = 'dialog-time';
+
+        nameTimeDiv.appendChild(nameSpan);
+        nameTimeDiv.appendChild(timeSpan);
+            
+        const textSpan = document.createElement('span');
+        textSpan.textContent = dialog.text;
+        textSpan.className = 'dialog-text';
+
+        infoDiv.appendChild(nameTimeDiv);
+        infoDiv.appendChild(textSpan);
+        li.appendChild(avatar);
+        li.appendChild(infoDiv);
+            
+        li.onclick = () => onChatClick(chatName);
+        return li;
     }
 
     static initNavMenu() {
