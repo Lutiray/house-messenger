@@ -5,6 +5,9 @@ let myNickname = "";
 let lastTypingTime = 0;
 let activeChat = null;
 let editingMsgId = null;
+let oldestMsgId = 0;             
+let isLoadingHistory = false;    
+let hasMoreHistory = true;
 const onlineUsers = new Set();
 
 // --- DOM-elements ---
@@ -70,9 +73,9 @@ cancelEditBtn.onclick = () => {
     editIndicator.classList.add('hidden');
 };
 
+// --- Observers ---
 const readObserver = new IntersectionObserver((entries, observer) => {
-    let sendersToMark = new Set();
-
+    const sendersToMark = new Set();
     entries.forEach(entry => {
         if (entry.isIntersecting) {
             const sender = entry.target.dataset.sender;
@@ -88,9 +91,23 @@ const readObserver = new IntersectionObserver((entries, observer) => {
     });
 }, { threshold: 0.6 });
 
+const topSentinel = document.createElement('div');
+topSentinel.style.height = '1px';
+
+const historyObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && ! isLoadingHistory && hasMoreHistory && activeChat) {
+        isLoadingHistory = true;
+        ipcRenderer.send('to-cpp', JSON.stringify({
+            type: 'get_history',
+            user: activeChat,
+            before_id: oldestMsgId
+        }));
+    }
+}, { root: messagesContainer, threshold: 0.1 });
+
+// --- Helpers ---
 function setChatStatus(isOnline) {
     if (!chatSubtitleUI) return;
-
     chatSubtitleUI.textContent = isOnline ? 'Online' : 'Offline';
     chatSubtitleUI.classList.toggle('status-online', isOnline);
     chatSubtitleUI.classList.toggle('status-offline', !isOnline);
@@ -107,7 +124,6 @@ function requestDialogsDebounced(delay = 500) {
 function openChat(chatName) {
     activeChat = chatName;
     currentChatNameUI.innerText = chatName;
-    
     setChatStatus(onlineUsers.has(chatName));
     
     emptyChatState.classList.add('hidden');
@@ -117,12 +133,17 @@ function openChat(chatName) {
         el.classList.toggle('active', el.querySelector('.dialog-name')?.textContent === chatName);
     });
 
+    oldestMsgId = 0;
+    hasMoreHistory = true;
+    isLoadingHistory = false;
+
+    historyObserver.unobserve(topSentinel);
     messagesContainer.innerHTML = '';
     ipcRenderer.send('to-cpp', JSON.stringify({type: 'get_history', user: chatName}));
     messageInput.focus();
 }
 
-//  === GLOSSARY OF PACKAGE PROCESSORS ===
+// === PACKET HANDLERS ===
 const PacketHandlers = {
 
     'auth_response': (data) => {
@@ -155,9 +176,7 @@ const PacketHandlers = {
 
             UIManager.addMessage(
                 messagesContainer,
-                data.from,
-                data.text,
-                data.id,
+                data.from, data.text, data.id,
                 data.timestamp,
                 data.from === myNickname,
                 data.is_read === 1,
@@ -176,43 +195,78 @@ const PacketHandlers = {
     },
 
     'history': (data) => {
-        if (!data.data || data.data.length === 0) return;
-        
-        let firstUnreadFound = false;
-        let dividerElement = null;
+        if (!data.data || data.chat_with !== activeChat) return;
 
-        data.data.forEach(m => {
-            const isOwn = m.from === myNickname;
-            const isRead = m.is_read === 1;
+        if (data.data.length === 0){
+            hasMoreHistory = false;
+            isLoadingHistory = false;
+            return;
+        }
 
-            if (!isOwn && !isRead && !firstUnreadFound){
-                firstUnreadFound = true;
+        const isInitialLoad = (oldestMsgId === 0);
 
-                dividerElement = document.createElement('div');
-                dividerElement.className = 'unread-divider';
-                dividerElement.innerHTML = '<span>New messages</span>';
-                messagesContainer.appendChild(dividerElement);
+        if (isInitialLoad) {
+            messagesContainer.innerHTML = ''; 
+            messagesContainer.appendChild(topSentinel); 
+            historyObserver.observe(topSentinel);
+
+            let firstUnreadFound = false;
+            let dividerElement = null;
+
+            data.data.forEach(m => {
+                const isOwn = m.from === myNickname;
+                const isRead = m.is_read === 1;
+
+                if (!isOwn && !isRead && !firstUnreadFound){
+                    firstUnreadFound = true;
+                    dividerElement = document.createElement('div');
+                    dividerElement.className = 'unread-divider';
+                    dividerElement.innerHTML = '<span>New messages</span>';
+                    messagesContainer.appendChild(dividerElement);
+                }
+
+                UIManager.addMessage(
+                    messagesContainer,
+                    m.from, m.text, m.id, m.time,
+                    m.from === myNickname,
+                    m.is_read === 1,
+                    readObserver
+                );
+
+                if (oldestMsgId === 0 || m.id < oldestMsgId) {
+                    oldestMsgId = m.id;
+                }
+            });
+
+            requestAnimationFrame(() => {
+                if (dividerElement) {
+                    dividerElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                } else {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            });
+
+        } else {
+            const oldScrollHeight = messagesContainer.scrollHeight;
+
+            for (let i = data.data.length - 1; i >= 0; i--) {
+                const m = data.data[i];
+
+                UIManager.addMessage(
+                    messagesContainer, m.from, m.text, m.id, m.time,
+                    m.from === myNickname, m.is_read === 1, 
+                    readObserver, topSentinel
+                );
+
+                if (m.id < oldestMsgId) {
+                    oldestMsgId = m.id;
+                }
             }
-
-            UIManager.addMessage(
-                messagesContainer,
-                m.from,
-                m.text,
-                m.id,
-                m.time,
-                m.from === myNickname,
-                m.is_read === 1,
-                readObserver
-            );
-        });
-
-        setTimeout(() => {
-            if (dividerElement) {
-                dividerElement.scrollIntoView({behavior: 'smooth', block: 'center'});
-            } else {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            if (oldScrollHeight > 0) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight - oldScrollHeight;
             }
-        }, 50)
+        }
+        isLoadingHistory = false;
     },
 
     'status': (data) => {
@@ -233,7 +287,6 @@ const PacketHandlers = {
         if (!typingIndicator || data.from !== activeChat) return;
         typingIndicator.textContent = `${data.from} is typing...`;
         typingIndicator.classList.remove('hidden');
-        
         clearTimeout(window.typingTimeout);
         window.typingTimeout = setTimeout(() => {
             typingIndicator.classList.add('hidden');
@@ -241,22 +294,18 @@ const PacketHandlers = {
     },
 
     'msg_deleted': (data) => {
-        const msgEl = document.querySelector(`.message[data-id="${data.id}"]`);
+        const msgEl = messagesContainer.querySelector(`.message[data-id="${data.id}"]`);
         if (msgEl) msgEl.remove();
     },
 
     'msg_edited': (data) => {
         const msgEl = messagesContainer.querySelectorAll('.message.own .read-receipt i');
-        if (msgToEdit) {
-            const textElement = msgToEdit.querySelector('.msg-text');
-            UIManager.setMessageEdited(msgEl, data.text);
-        }
+        UIManager.setMessageEdited(msgEl, data.text);
     },
 
-    'msgs_read': (data) => {
+    'msg_read': (data) => {
         if (activeChat !== data.by) return;
-        const receipts = messagesContainer.querySelectorAll('.message.own .read-receipt i');
-        receipts.forEach(icon => {
+        messagesContainer.querySelectorAll('.message.own .read-receipt i').forEach(icon => {
             icon.className = 'ph ph-checks';
             icon.style.color = 'var(--accent)';
         });
@@ -288,7 +337,6 @@ const PacketHandlers = {
 
             const info = document.createElement('div');
             info.className = 'dialog-info';
-
             const header = document.createElement('div');
             header.className = 'dialog-header';
 
@@ -308,7 +356,6 @@ const PacketHandlers = {
             header.appendChild(tagSpan);
             info.appendChild(header);
             info.appendChild(textSpan);
-
             li.appendChild(avatar);
             li.appendChild(info);
 
@@ -320,9 +367,10 @@ const PacketHandlers = {
 
             userListContainer.appendChild(li);
         });
-    },  
+    },
 };
 
+// --- IPC ---
 ipcRenderer.on('from-cpp', (event, rawJson) => {
     try {
         const packets = rawJson.split('\n').filter(p => p.trim() !== '');
@@ -391,7 +439,7 @@ exitBtn.onclick = () => {
     ipcRenderer.send('restart-app');
 };
 
-// --- Post a message ---
+// --- Messaging ---
 messageInput.addEventListener('input', () => {
     if (!activeChat) return;
     const now = Date.now();
@@ -415,21 +463,15 @@ messageForm.onsubmit = (e) => {
     } else {
         ipcRenderer.send('to-cpp', JSON.stringify({ type: 'send_msg', to: activeChat, content: text }));
     }
-
     messageInput.value = '';
 };
 
+// --- Scroll button ---
 if (messagesContainer && scrollBottomBtn) {
     messagesContainer.addEventListener('scroll', () => {
         const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-        
-        if (distanceFromBottom > 150) {
-            scrollBottomBtn.classList.remove('hidden');
-        } else {
-            scrollBottomBtn.classList.add('hidden');
-        }
+        scrollBottomBtn.classList.toggle('hidden', distanceFromBottom <= 150);
     });
-
     scrollBottomBtn.addEventListener('click', () => {
         messagesContainer.scrollTo({
             top: messagesContainer.scrollHeight,
@@ -438,6 +480,7 @@ if (messagesContainer && scrollBottomBtn) {
     });
 }
 
+// --- File upload ---
 if (attachBtn && fileUploadInput) {
     attachBtn.onclick = () => {
         if (!activeChat) return;
@@ -452,17 +495,14 @@ if (attachBtn && fileUploadInput) {
         messageInput.disabled = true;
 
         try {
-            const uploadUrl = `http://localhost:8081/upload`;
-            const response = await fetch(uploadUrl, {
+            const response = await fetch(`http://localhost:8081/upload`, {
                 method: 'POST',
                 headers: {
                     'filename': encodeURIComponent(file.name) 
                 },
                 body: file
             });
-
             const data = await response.json();
-
             if (data.status === 'success') {
                 ipcRenderer.send('to-cpp', JSON.stringify({
                     type: 'send_msg',
@@ -495,7 +535,7 @@ if (searchInput) {
     });
 }
 
-// --- Detail's panel ---
+// --- Details panel ---
 if (toggleDetailsBtn && closeDetailsBtn && chatDetailsPanel) {
     toggleDetailsBtn.onclick = () => chatDetailsPanel.classList.toggle('hidden');
     closeDetailsBtn.onclick  = () => chatDetailsPanel.classList.add('hidden');
