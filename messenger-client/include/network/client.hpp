@@ -6,6 +6,7 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <mutex>
 #include "json.hpp"
 
 class Client {
@@ -22,6 +23,7 @@ public:
                         const std::string& email = "", const std::string& phone = "");
     void sendChatMessage(const std::string& text);
     void set_message_callback(MessageCallback cb) { _ui_callback = cb; }
+    void send_json(const nlohmann::json& j);
 
     bool is_authenticated() const { return _is_authenticated; }
     std::string get_my_nickname() const { return _my_nickname; }
@@ -36,6 +38,7 @@ private:
     std::string _my_nickname;
     std::string _read_buffer;
     std::thread _receive_thread;
+    std::mutex _buffer_mutex;
 
     MessageCallback _ui_callback = nullptr;
 
@@ -43,7 +46,6 @@ private:
     void receive_loop();
     void ping_loop();
     void handle_json_packet(const nlohmann::json& j);
-    void send_json(const nlohmann::json& j);
 };
 
 #endif
