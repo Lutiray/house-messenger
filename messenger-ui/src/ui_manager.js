@@ -162,7 +162,8 @@ class UIManager {
             if (observer) observer.observe(msgDiv);
         }
 
-        if (msgId) msgDiv.dataset.id = msgId; 
+        if (msgId) msgDiv.dataset.id = msgId;
+        if (timestampStr) msgDiv.dataset.time = timestampStr;
 
         const avatarImg = document.createElement('img');
         avatarImg.className = 'msg-avatar';
@@ -290,6 +291,17 @@ class UIManager {
             e.preventDefault(); 
             selectedMsgId = parseInt(msgDiv.dataset.id);
             selectedMsgElement = msgDiv;
+
+            const editItem = document.getElementById('ctx-edit');
+            let canEdit = true;
+
+            if (msgDiv.dataset.time && msgDiv.dataset.time !== 'now') {
+                const isoString = msgDiv.dataset.time.replace(' ', 'T') + 'Z';
+                const msgDate = new Date(isoString).getTime();
+                const diffHours = (Date.now() - msgDate) / (1000 * 60 * 60);
+                if (diffHours > 1) canEdit = false;
+            }
+            editItem.style.display = canEdit ? '' : 'none';
 
             const menuW = 185, menuH = 80;
             const left = Math.min(e.pageX, window.innerWidth - menuW - 8);
