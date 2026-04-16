@@ -1,8 +1,8 @@
 #include "network/client.hpp"
 #include <iostream>
-#include <ws2tcpip.h>
 #include <chrono>
 #include <thread>
+#include <WS2tcpip.h>
 
 using json = nlohmann::json;
 
@@ -44,6 +44,10 @@ bool Client::connectToServer() {
         _client_fd = INVALID_SOCKET;
     }
 
+    if (_receive_thread.joinable()) {
+        _receive_thread.join();
+    }
+
     _client_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (_client_fd == INVALID_SOCKET) return false;
 
@@ -60,10 +64,6 @@ bool Client::connectToServer() {
     }
 
     _is_running = true;
-    
-    if (_receive_thread.joinable()) {
-        _receive_thread.join();
-    }
     _receive_thread = std::thread(&Client::receive_loop, this);
 
     return true;
@@ -92,15 +92,7 @@ void Client::registerUser(const std::string& username, const std::string& passwo
 
 void Client::sendChatMessage(const std::string& text) {
     if (text.empty()) return;
-
-    if (text.rfind("/connect", 0) == 0) return;
-
-    if (text[0] == '/' || text[0] == '{') {
-        std::string raw = text + "\n";
-        send(_client_fd, raw.c_str(), (int)raw.size(), 0);
-    } else {
-        send_json({{"type", "send_msg"}, {"to", "general"}, {"content", text}});
-    }
+    send_json({{"type", "send_msg"}, {"to", "general"}, {"content", text}});
 }
 
 void Client::receive_loop() {
@@ -110,9 +102,10 @@ void Client::receive_loop() {
 
         int bytes = recv(_client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes > 0) {
+            std::lock_guard<std::mutex> lock(_buffer_mutex);
             _read_buffer.append(buffer, bytes);
 
-            size_t pos = 0;
+            size_t pos;
             while ((pos = _read_buffer.find('\n')) != std::string::npos) {
                 std::string packet = _read_buffer.substr(0, pos);
                 _read_buffer.erase(0, pos + 1);
@@ -121,11 +114,11 @@ void Client::receive_loop() {
                 try {
                     handle_json_packet(json::parse(packet));
                 } catch (const std::exception& e) {
-                    std::cerr << "[Bridge Error] Failed to parse JSON: " << packet << std::endl;
+                    std::cerr << "[Client] Failed to parse JSON: " << packet << std::endl;
                 }
             }
         } else {
-            std::cout << "{\"type\":\"system\",\"content\":\"Lost connection to server.\"}" << std::endl;
+            std::cout << "{\"type\":\"system\",\"text\":\"Lost connection to server.\"}" << std::endl;
             _is_running = false;
             break;
         }
@@ -134,22 +127,18 @@ void Client::receive_loop() {
 
 void Client::handle_json_packet(const json& j) {
     std::string type = j.value("type", "unknown");
-    if (type == "pong") {
-        return; 
-    }
+    if (type == "pong") return; 
     
     std::cout << j.dump() << std::endl;
     
     if (_ui_callback) _ui_callback(j);
 
-    if (type == "auth_response") {
-        if (j.value("status", "") == "success") {
-            _is_authenticated = true;
-            _my_nickname = j.value("username", "");
+    if (type == "auth_response" && j.value("status", "") == "success") {
+        _is_authenticated = true;
+        _my_nickname = j.value("username", "");
 
-            if (_ping_thread.joinable()) _ping_thread.join();
-            _ping_thread = std::thread(&Client::ping_loop, this);
-        }
+        if (_ping_thread.joinable()) _ping_thread.join();
+        _ping_thread = std::thread(&Client::ping_loop, this);
     }
 }
 
@@ -171,11 +160,7 @@ void Client::stop() {
         _client_fd = INVALID_SOCKET;
     }
 
-    if (_receive_thread.joinable()) {
-        _receive_thread.join();
-    }
+    if (_receive_thread.joinable()) _receive_thread.join();
 
-    if (_ping_thread.joinable()) {
-        _ping_thread.join();
-    }
+    if (_ping_thread.joinable()) _ping_thread.join();
 }
