@@ -305,12 +305,20 @@ int DatabaseManager::getOrCreateDirectChannel(int user1_id, int user2_id) {
  
     {
         StmtGuard stmt;
-        if (sqlite3_prepare_v2(_db, SQL::INSERT_CHANNEL_MEMBERS, -1, stmt.ptr(), nullptr) == SQLITE_OK) {
-            sqlite3_bind_int(stmt, 1, new_id);
-            sqlite3_bind_int(stmt, 2, user1_id);
-            sqlite3_bind_int(stmt, 3, new_id);
-            sqlite3_bind_int(stmt, 4, user2_id);
-            stmt.step();
+        if (user1_id == user2_id){
+            if (sqlite3_prepare_v2(_db, SQL::INSERT_SINGLE_CHANNEL_MEMBER, -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+                sqlite3_bind_int(stmt, 1, new_id);
+                sqlite3_bind_int(stmt, 2, user1_id);
+                stmt.step();
+            }
+        }else {
+            if (sqlite3_prepare_v2(_db, SQL::INSERT_CHANNEL_MEMBERS, -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+                sqlite3_bind_int(stmt, 1, new_id);
+                sqlite3_bind_int(stmt, 2, user1_id);
+                sqlite3_bind_int(stmt, 3, new_id);
+                sqlite3_bind_int(stmt, 4, user2_id);
+                stmt.step();
+            }
         }
     }
     return new_id;
