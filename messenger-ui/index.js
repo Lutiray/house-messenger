@@ -7,7 +7,7 @@ let mainWindow;
 let cppClient;
 
 function startCppClient() {
-    const exePath = "C:\\Рабочий стол\\messenger\\messenger-client\\build\\Debug\\messenger-client.exe";
+    const exePath = path.join(__dirname, '../messenger-client/build/Debug/messenger-client.exe');
     const exeDir = path.dirname(exePath);
 
     if (cppClient) {
@@ -52,7 +52,7 @@ function createWindow() {
     });
 
     mainWindow.loadFile("src/index.html");
-    mainWindow.webContents.openDevTools();
+    if (!app.isPackaged) mainWindow.webContents.openDevTools();
 
     startCppClient();
 }
