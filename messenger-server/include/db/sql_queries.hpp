@@ -90,7 +90,9 @@ constexpr const char* GET_DIALOGS =
     "SELECT m.id, "
     "(SELECT u2.username FROM channel_members cm2 "
     "JOIN users u2 ON cm2.user_id = u2.id "
-    "WHERE cm2.channel_id = c.id AND cm2.user_id != ?) AS chat_name, "
+    "WHERE cm2.channel_id = c.id AND cm2.user_id != ?), "
+    "'Saved Messages' "
+    "AS chat_name, "
     "m.content, m.timestamp, "
     "m.is_edited, "
     "CASE WHEN m.id <= cm.last_read_msg_id THEN 1 ELSE 0 END AS is_read "
@@ -113,7 +115,10 @@ constexpr const char* INSERT_CHANNEL =
  
 constexpr const char* INSERT_CHANNEL_MEMBERS =
     "INSERT INTO channel_members (channel_id, user_id) VALUES (?, ?), (?, ?);";
- 
+
+constexpr const char* INSERT_SINGLE_CHANNEL_MEMBER =
+    "INSERT INTO channel_members (channel_id, user_id) VALUES (?, ?);";
+
 // --- Readed ---
 constexpr const char* MARK_READ =
     "UPDATE channel_members SET last_read_msg_id ="
