@@ -265,3 +265,50 @@
     color: white;
 }
 
+.dialog-text-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.dialog-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    margin-right: 10px;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.dialog-text.unread-bold {
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.dialog-badge-container {
+    flex-shrink: 0;
+}
+
+.dialog-tick-icon {
+    font-size: 16px;
+}
+
+.dialog-tick-icon.read {
+    color: var(--accent);
+}
+
+.dialog-tick-icon.unread {
+    color: var(--text-muted);
+}
+
+.dialog-unread-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-block;
+}
