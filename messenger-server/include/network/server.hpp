@@ -1,7 +1,6 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <winsock2.h>
 #include <vector>
 #include <mutex>
 #include <map>
@@ -10,6 +9,22 @@
 #include "db/database_manager.hpp"
 #include "json.hpp"
 #include "interfaces/interfaces.hpp"
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #include <cerrno>
+    
+    typedef int SOCKET;
+    const int INVALID_SOCKET = -1;
+    const int SOCKET_ERROR = -1;
+    #define closesocket close
+#endif
 
 class Server : public IMessageSender, public IUserRegistry{
 public:
