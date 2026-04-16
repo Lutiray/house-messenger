@@ -4,6 +4,8 @@ project(messenger-server)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(Threads REQUIRED)
+
 include_directories(include)
 include_directories(external)
 
@@ -24,6 +26,5 @@ if (WIN32)
     target_link_libraries(messenger-server PRIVATE ws2_32)
 endif()
 
-find_package(Threads REQUIRED)
 target_link_libraries(messenger-server PRIVATE Threads::Threads)
 
