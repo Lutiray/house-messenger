@@ -284,7 +284,7 @@ const PacketHandlers = {
     },
 
     'typing': (data) => {
-        if (!typingIndicator || data.from !== activeChat) return;
+        if (!typingIndicator || data.from !== activeChat || activeChat === myNickname) return;
         typingIndicator.textContent = `${data.from} is typing...`;
         typingIndicator.classList.remove('hidden');
         clearTimeout(window.typingTimeout);
@@ -441,7 +441,7 @@ exitBtn.onclick = () => {
 
 // --- Messaging ---
 messageInput.addEventListener('input', () => {
-    if (!activeChat) return;
+    if (!activeChat || activeChat === myNickname) return;
     const now = Date.now();
     if (now - lastTypingTime > 2000) {
         lastTypingTime = now;
@@ -533,17 +533,6 @@ if (searchInput) {
             requestDialogsDebounced(0);
         }
     });
-}
-
-// --- The btn Saved Messages ---
-const savedBtn = document.querySelector('.nav-item[title="Saved"]');
-if (savedBtn) {
-    savedBtn.onclick = () => {
-        document.querySelectorAll('.app-nav .nav-item').forEach(n => n.classList.remove('active'));
-        savedBtn.classList.add('active');
-        openChat(myNickname);
-        currentChatNameUI.textContent = "Saved Messages";
-    };
 }
 
 // --- Details panel ---
