@@ -2,7 +2,6 @@
 #include "utils/logger.hpp"
 #include "utils/string_utils.hpp"
 #include "interfaces/interfaces.hpp"
-#include "auth_handler.hpp"
 
 using json = nlohmann::json;
 
