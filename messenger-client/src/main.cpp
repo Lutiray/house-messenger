@@ -20,32 +20,47 @@ int main() {
 
         if (input == "/connect") { 
             if (client.connectToServer()) {
-                std::cout << "{\"type\":\"system\",\"content\":\"Connected to server\"}" << std::endl;
+                std::cout << "{\"type\":\"system\",\"text\":\"Connected to server\"}" << std::endl;
             } else {
-                std::cout << "{\"type\":\"system\",\"content\":\"Connection failed\"}" << std::endl;
+                std::cout << "{\"type\":\"system\",\"text\":\"Connection failed\"}" << std::endl;
             }
             continue;
         }
-        else if (input.rfind("/reg ", 0) == 0) {
+        
+        if (input.rfind("/reg ", 0) == 0) {
             std::stringstream ss(input.substr(5));
-            std::string u, p, email, phone;
+            std::string username, password, email, phone;
             
-            ss >> u >> p >> email >> phone; 
+            ss >> username >> password >> email >> phone; 
             
-            if (!u.empty() && !p.empty()) {
-                client.registerUser(u, p, email, phone);
+            if (!username.empty() && !password.empty()) {
+                client.registerUser(username, password, email, phone);
             } else {
-                std::cout << "{\"type\":\"system\",\"content\":\"Usage: /reg <user> <pass> [email] [phone]\"}" << std::endl;
+                std::cout << "{\"type\":\"system\",\"text\":\"Usage: /reg <user> <pass> [email] [phone]\"}" << std::endl;
             }
         } 
-        else if (input.rfind("/login ", 0) == 0) {
+        
+        if (input.rfind("/login ", 0) == 0) {
             std::stringstream ss(input.substr(7));
-            std::string u, p;
-            if (ss >> u >> p) client.login(u, p);
+            std::string username, password;
+            if (ss >> username >> password) {
+                client.login(username, password);
+            } else {
+                std::cout << R"({"type":"system","text":"Usage: /login <user> <pass>"})" << std::endl;
+            }
+            continue;
         }
-        else {
-            client.sendChatMessage(input);
+
+        if (!input.empty() && input.front() == '{') {
+            try {
+                client.send_json(nlohmann::json::parse(input));
+            } catch (...) {
+                std::cerr << "[main] Invalid JSON from stdin: " << input << std::endl;
+            }
+            continue;
         }
+
+        client.sendChatMessage(input);
     }
 
     client.stop();
