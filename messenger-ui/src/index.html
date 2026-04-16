@@ -2,6 +2,14 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+                default-src 'self'; 
+                script-src 'self' 'unsafe-inline' https://unpkg.com;
+                style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; 
+                font-src 'self' https://cdn.jsdelivr.net https://unpkg.com;; 
+                img-src 'self' data: blob: https://ui-avatars.com http://localhost:8081; 
+                connect-src 'self' http://localhost:8081;
+            ">
     <title>Messenger 2026</title>
     <link rel="stylesheet" href="styles/main.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -123,7 +131,6 @@
             </div>
         </aside>
     </div>
-
     <div id="context-menu" class="hidden">
         <div class="ctx-item" id="ctx-edit">
             <i class="ph ph-pencil-simple"></i> Edit Message
@@ -131,6 +138,11 @@
         <div class="ctx-item delete" id="ctx-delete">
             <i class="ph ph-trash"></i> Delete Message
         </div>
+    </div>
+    <div id="image-lightbox" class="hidden">
+        <div class="lightbox-overlay"></div>
+        <img id="lightbox-img" src="" alt="Fullscreen image">
+        <button id="lightbox-close"><i class="ph ph-x"></i></button>
     </div>
 
     <script>require('./renderer.js');</script>
