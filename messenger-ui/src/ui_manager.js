@@ -5,16 +5,21 @@ class UIManager {
     }
 
     static formatTime(timestampStr) {
-        let dateObj;
-        if (!timestampStr || timestampStr === 'now') {
-            dateObj = new Date();
-        } else {
-            const isoString = timestampStr.replace(' ', 'T') + 'Z';
-            dateObj = new Date(isoString);
+        if (!timestampStr || timestampStr === 'now' || String(timestampStr).trim() === '') {
+            const d = new Date();
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
         }
-        const h = dateObj.getHours().toString().padStart(2, '0');
-        const m = dateObj.getMinutes().toString().padStart(2, '0');
-        return `${h}:${m}`;
+
+        const parts = timestampStr.split(/[- :]/);
+        if (parts.length >= 5){
+            const d = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5] || 0));
+            if (!isNaN(d.getTime())) {
+                const h = d.getHours().toString().padStart(2, '0');
+                const m = d.getMinutes().toString().padStart(2, '0');
+                return `${h}:${m}`;
+            }
+        }
+        return timestampStr;
     }
 
     static getFileIcon(ext) {
@@ -221,21 +226,38 @@ class UIManager {
             return;
         }
 
+        let savedMessagesDialog = null;
+        const otherDialogs = [];
+
         dialogsArray.forEach(dialog => {
+            if (dialog.chat_name === "Saved Messages" || dialog.chat_name === myNickname) {
+                savedMessagesDialog = dialog;
+            } else {
+                otherDialogs.push(dialog);
+            }
+        });
+
+        if (savedMessagesDialog) {
             listElement.appendChild(
-                UIManager._buildDialogItem(dialog.from, dialog, onChatClick)
+                UIManager._buildDialogItem("Saved Messages", savedMessagesDialog, myNickname, () => onChatClick(myNickname), true)
+            );
+        }
+
+        otherDialogs.forEach(dialog => {
+            listElement.appendChild(
+                UIManager._buildDialogItem(dialog.chat_name, dialog, myNickname, () => onChatClick(dialog.chat_name), false)
             );
         });
     }
 
-    static _buildDialogItem(chatName, dialog, onChatClick) {
+    static _buildDialogItem(displayTitle, dialog, myNickname, onChatClick, isSaved = false) {
         const li = document.createElement('li');
         li.className = 'dialog-item'; 
 
         const avatar = document.createElement('img');
-        avatar.src = UIManager.getAvatarUrl(chatName, 40);
+        avatar.src = isSaved ? 'https://ui-avatars.com/api/?name=SM&background=5b7cff&color=fff' : UIManager.getAvatarUrl(displayTitle, 40);
         avatar.className = 'dialog-avatar';
-        avatar.alt = chatName;
+        avatar.alt = displayTitle;
             
         const infoDiv = document.createElement('div');
         infoDiv.className = 'dialog-info';
@@ -244,7 +266,7 @@ class UIManager {
         nameTimeDiv.className = 'dialog-header';
             
         const nameSpan = document.createElement('span');
-        nameSpan.textContent  = chatName;
+        nameSpan.textContent = displayTitle;
         nameSpan.className = 'dialog-name';
             
         const timeSpan = document.createElement('span');
@@ -253,17 +275,44 @@ class UIManager {
 
         nameTimeDiv.appendChild(nameSpan);
         nameTimeDiv.appendChild(timeSpan);
+
+        const textBadgeDiv = document.createElement('div');
+        textBadgeDiv.className = 'dialog-text-wrapper';
             
         const textSpan = document.createElement('span');
         textSpan.textContent = dialog.text;
         textSpan.className = 'dialog-text';
 
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'dialog-badge-container';
+
+        if (!isSaved) {
+            if (dialog.last_sender === myNickname) {
+                const tickIcon = document.createElement('i');
+                tickIcon.className = dialog.is_read_by_them === 1
+                    ? 'ph ph-checks dialog-tick-icon read' 
+                    : 'ph ph-check dialog-tick-icon unread';
+                badgeContainer.appendChild(tickIcon);
+            } else {
+                if (dialog.unread_count > 0) {
+                    const badge = document.createElement('span');
+                    badge.textContent = dialog.unread_count;
+                    badge.className = 'dialog-unread-badge';
+                    badgeContainer.appendChild(badge);
+                    textSpan.classList.add('unread-bold');
+                }
+            }
+        }
+        
+        textBadgeDiv.appendChild(textSpan);
+        textBadgeDiv.appendChild(badgeContainer);
+
         infoDiv.appendChild(nameTimeDiv);
-        infoDiv.appendChild(textSpan);
+        infoDiv.appendChild(textBadgeDiv); 
         li.appendChild(avatar);
         li.appendChild(infoDiv);
             
-        li.onclick = () => onChatClick(chatName);
+        li.onclick = onChatClick;
         return li;
     }
 
