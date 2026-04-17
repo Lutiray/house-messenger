@@ -20,7 +20,6 @@ const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const messagesContainer = document.getElementById('messenger-container');
 const userListContainer = document.getElementById('user-list');
-
 const currentChatNameUI = document.getElementById('current-chat-name');
 const myAvatarPlaceholder = document.querySelector('.my-avatar-placeholder');
 const typingIndicator = document.getElementById('typing-indicator');
@@ -41,22 +40,33 @@ const regPassInp = document.getElementById('reg-password');
 const regPassConfInp = document.getElementById('reg-password-confirm');
 const regEmailInp = document.getElementById('reg-email');
 const regPhoneInp = document.getElementById('reg-phone');
-
 const emptyChatState = document.getElementById('empty-chat-state');
 const activeChatArea = document.getElementById('active-chat-area');
 const chatSubtitleUI = document.getElementById('chat-subtitle');
-
 const editIndicator = document.getElementById('edit-indicator');
 const editPreviewText = document.getElementById('edit-preview-text');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const searchInput = document.getElementById('user-search-input');
-
 const toggleDetailsBtn = document.getElementById('toggle-details-btn');
 const closeDetailsBtn = document.getElementById('close-details-btn');
 const chatDetailsPanel = document.getElementById('chat-details-panel');
 const attachBtn = document.getElementById('attach-btn');
 const fileUploadInput = document.getElementById('file-upload-input');
 
+// --- Profile Modal Logic ---
+const profileBtn = document.querySelector('.my-avatar-placeholder');
+const profileModal = document.getElementById('profile-modal');
+const profileOverlay = document.getElementById('profile-overlay');
+const closeProfileBtn = document.getElementById('close-profile-btn');
+const profileAvatarImg = document.getElementById('profile-avatar-img');
+const profileUsernameDisplay = document.getElementById('profile-username-display');
+const profileUsernameTag = document.getElementById('profile-username-tag');
+const avatarTrigger = document.getElementById('profile-avatar-trigger');
+const addPhotoTextBtn = document.getElementById('add-photo-text-btn');
+const avatarUploadInput = document.getElementById('avatar-upload-input');
+const nicknameInput = document.getElementById('profile-nickname-input');
+const usernameInput = document.getElementById('profile-username-input');
+const bioInput = document.getElementById('profile-bio-input');
 // --- Initialization of UI-modules ---
 UIManager.initNavMenu();
 UIManager.initContextMenu(messagesContainer, () => myNickname, ipcRenderer, (msgId, oldText) => {
@@ -368,6 +378,22 @@ const PacketHandlers = {
             userListContainer.appendChild(li);
         });
     },
+
+    'user_profile': (data) => {
+        profileAvatarImg.src = data.avatar_url ? data.avatar_url : UIManager.getAvatarUrl(data.display_name, 120);
+
+        nicknameInput.value = data.display_name;
+        usernameInput.value = data.username;
+        bioInput.value = data.bio;
+
+        profileUsernameDisplay.textContent = data.display_name;
+        profileUsernameTag.textContent = '@' + data.username;
+    },
+
+    'username_changed': (data) => {
+        myNickname = data.new_name; 
+        ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_dialogs' }));
+    },
 };
 
 // --- IPC ---
@@ -535,8 +561,83 @@ if (searchInput) {
     });
 }
 
+function openProfile() {
+    profileAvatarImg.src = UIManager.getAvatarUrl(myNickname, 120);
+    nicknameInput.value = myNickname; 
+    usernameInput.value = myNickname;
+    bioInput.value = "Hello!";
+    [nicknameInput, usernameInput, bioInput].forEach(
+        input => input.setAttribute('readonly', 'true'
+        ));
+    
+    profileModal.classList.remove('hidden');
+    [nicknameInput, usernameInput, bioInput].forEach(input => input.setAttribute('readonly', 'true'));
+    ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_profile' }));
+}
+
+function closeProfile() {
+    profileModal.classList.add('hidden');
+}
+
+if (profileBtn) profileBtn.onclick = openProfile;
+if (closeProfileBtn) closeProfileBtn.onclick = closeProfile;
+if (profileOverlay) profileOverlay.onclick = closeProfile;
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !profileModal.classList.contains('hidden')) {
+        closeProfile();
+    }
+});
+
+document.querySelectorAll('.profile-editable-group .edit-icon-btn').forEach(icon => {
+    icon.onclick = (e) => {
+        const input = e.target.previousElementSibling;
+        input.removeAttribute('readonly');
+        input.focus();
+
+        const val = input.value;
+        input.value = '';
+        input.value = val;
+    };
+});
+
+document.querySelectorAll('.profile-input').forEach(input => {
+    const lockInput = () => {
+        input.setAttribute('readonly', 'true');
+        if (input.value.trim() !== '') {
+            ipcRenderer.send('to-cpp', JSON.stringify({ 
+                type: 'update_profile', 
+                field: input.id, 
+                value: input.value.trim() 
+            }));
+        }
+    };
+
+    input.addEventListener('blur', lockInput);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            input.blur();
+        }
+    });
+});
+
+const triggerUpload = () => avatarUploadInput.click();
+if (avatarTrigger) avatarTrigger.onclick = triggerUpload;
+if (addPhotoTextBtn) addPhotoTextBtn.onclick = triggerUpload;
+
+avatarUploadInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file){
+        console.log("Selected file for avatar: ", file.name);
+        const reader = new FileReader();
+        reader.onload = (e) => profileAvatarImg.src = e.target.result;
+        reader.readAsDataURL(file);
+    }
+});
 // --- Details panel ---
 if (toggleDetailsBtn && closeDetailsBtn && chatDetailsPanel) {
     toggleDetailsBtn.onclick = () => chatDetailsPanel.classList.toggle('hidden');
     closeDetailsBtn.onclick  = () => chatDetailsPanel.classList.add('hidden');
 }
+
+
