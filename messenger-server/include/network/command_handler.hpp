@@ -30,6 +30,8 @@ private:
     void handle_send_message(const json &j);
     void handle_get_history(const json &j);
     void handle_get_dialogs();
+    void handle_get_profile(const nlohmann::json& j);
+    void handle_update_profile(const nlohmann::json& j);
 
     json build_chat_message(const std::string &text, const std::string &target, bool is_private = false, int msg_id = -1);
 
