@@ -51,26 +51,53 @@ bool DatabaseManager::init() {
         }
     }
 
-    if (current_version >= 3) return true;
-    Logger::info("Migrating database to version 3...");
- 
-    const char* migrations[] = {
-        SQL::CREATE_USERS,
-        SQL::CREATE_CHANNELS,
-        SQL::CREATE_CHANNEL_MEMBERS,
-        SQL::CREATE_MESSAGES,
-        SQL::CREATE_INDEXES
-    };
+    if (current_version < 3) {
+        Logger::info("Migrating database to version 3...");
+        const char* migrations[] = {
+            SQL::CREATE_USERS,
+            SQL::CREATE_CHANNELS,
+            SQL::CREATE_CHANNEL_MEMBERS,
+            SQL::CREATE_MESSAGES,
+            SQL::CREATE_INDEXES
+        };
 
-    char* errMsg = nullptr;
-    for (const char* sql : migrations) {
-        if (sqlite3_exec(_db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            Logger::error("SQL Init Error: " + std::string(errMsg));
-            sqlite3_free(errMsg);
-            return false;
+        char* errMsg = nullptr;
+        for (const char* sql : migrations) {
+            if (sqlite3_exec(_db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+                Logger::error("SQL Init Error: " + std::string(errMsg));
+                sqlite3_free(errMsg);
+                return false;
+            }
         }
+        sqlite3_exec(_db, "PRAGMA user_version = 3;", nullptr, nullptr, nullptr);
+        current_version = 3;
     }
-    sqlite3_exec(_db, "PRAGMA user_version = 3;", nullptr, nullptr, nullptr);
+ 
+    if (current_version < 4) {
+        Logger::info("Migrating database to version 4 (adding profile columns)...");
+        
+        const char* migrations_v4[] = {
+            "ALTER TABLE users ADD COLUMN display_name TEXT;",
+            "ALTER TABLE users ADD COLUMN bio TEXT;",
+            "ALTER TABLE users ADD COLUMN avatar_url TEXT;"
+        };
+
+        char* errMsg = nullptr;
+        for (const char* sql : migrations_v4) {
+            if (sqlite3_exec(_db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+                Logger::info(std::string("Note during migration: ") + errMsg);
+                sqlite3_free(errMsg);
+            }
+        }
+
+        sqlite3_exec(_db, "UPDATE users SET display_name = username WHERE display_name IS NULL;", nullptr, nullptr, nullptr);
+        sqlite3_exec(_db, "UPDATE users SET bio = 'I am using Messenger 2026' WHERE bio IS NULL;", nullptr, nullptr, nullptr);
+
+        sqlite3_exec(_db, "PRAGMA user_version = 4;", nullptr, nullptr, nullptr);
+        current_version = 4;
+        Logger::info("Successfully updated database to version 4!");
+    }
+
     return true;
 }
 
@@ -118,6 +145,7 @@ bool DatabaseManager::registerUser(const std::string& username, const std::strin
     sqlite3_bind_text(stmt, 3, salt.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 4, email.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 5, phone.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, username.c_str(), -1, SQLITE_STATIC);
 
     return stmt.step() == SQLITE_DONE;
 }
@@ -361,4 +389,72 @@ json DatabaseManager::searchUsers(const std::string& query) {
     return {{"type", "search_results"}, {"users", users}};
 }
 
+json DatabaseManager::getUserProfile(const std::string& username) {
+    std::lock_guard<std::mutex> lock(_db_mutex);
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::GET_USER_PROFILE, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return {};
 
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+
+    if (stmt.step() == SQLITE_ROW) {
+        json p;
+        const char* un  = (const char*)sqlite3_column_text(stmt, 0);
+        const char* dn  = (const char*)sqlite3_column_text(stmt, 1);
+        const char* bio = (const char*)sqlite3_column_text(stmt, 2);
+        const char* ava = (const char*)sqlite3_column_text(stmt, 3);
+
+        p["type"] = "user_profile";
+        p["username"] = un ? un : "";
+        p["display_name"] = dn ? dn : p["username"]; // Если нет никнейма, берем username
+        p["bio"] = bio ? bio : "";
+        p["avatar_url"] = ava ? ava : "";
+        return p;
+    }
+    return {};
+}
+
+bool DatabaseManager::updateUserProfile(const std::string& current_username, const std::string& field, const std::string& value) {
+    std::lock_guard<std::mutex> lock(_db_mutex);
+
+    if (field == "username") {
+        StmtGuard check_stmt;
+        if (sqlite3_prepare_v2(_db, "SELECT id FROM users WHERE username = ?;", -1, check_stmt.ptr(), nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(check_stmt, 1, value.c_str(), -1, SQLITE_STATIC);
+            if (check_stmt.step() == SQLITE_ROW) {
+                return false;
+            }
+        }
+        
+        StmtGuard stmt;
+        if (sqlite3_prepare_v2(_db, "UPDATE users SET username = ? WHERE username = ?;", -1, stmt.ptr(), nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, value.c_str(), -1, SQLITE_STATIC);
+            sqlite3_bind_text(stmt, 2, current_username.c_str(), -1, SQLITE_STATIC);
+            return stmt.step() == SQLITE_DONE;
+        }
+        return false;
+    }
+
+    StmtGuard stmt;
+    if (sqlite3_prepare_v2(_db, SQL::UPDATE_USER_PROFILE, -1, stmt.ptr(), nullptr) != SQLITE_OK)
+        return false;
+
+    if (field == "display_name") {
+        sqlite3_bind_text(stmt, 1, value.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_null(stmt, 2);
+        sqlite3_bind_null(stmt, 3);
+    } else if (field == "bio") {
+        sqlite3_bind_null(stmt, 1);
+        sqlite3_bind_text(stmt, 2, value.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_null(stmt, 3);
+    } else if (field == "avatar_url") {
+        sqlite3_bind_null(stmt, 1);
+        sqlite3_bind_null(stmt, 2);
+        sqlite3_bind_text(stmt, 3, value.c_str(), -1, SQLITE_STATIC);
+    } else {
+        return false;
+    }
+    
+    sqlite3_bind_text(stmt, 4, current_username.c_str(), -1, SQLITE_STATIC);
+    return stmt.step() == SQLITE_DONE;
+}

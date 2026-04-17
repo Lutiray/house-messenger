@@ -28,6 +28,8 @@ public:
     int getOrCreateDirectChannel(int user1_id, int user2_id);
     int findDirectChannel(int user1_id, int user2_id);
     json searchUsers(const std::string &query) override;
+    json getUserProfile(const std::string &username) override;
+    bool updateUserProfile(const std::string &username, const std::string &field, const std::string &value) override;
     int saveMessage(const std::string &sender_nick, const std::string &text, const std::string &receiver_nick) override;
     int getUserId(const std::string& username) override;
 
