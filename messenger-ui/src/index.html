@@ -141,6 +141,54 @@
         <img id="lightbox-img" src="" alt="Fullscreen image">
         <button id="lightbox-close"><i class="ph ph-x"></i></button>
     </div>
+    <div id="profile-modal" class="hidden">
+        <div class="lightbox-overlay" id="profile-overlay"></div>
+        <div class="profile-card">
+            <div class="profile-header">
+                <h3>My Profile</h3>
+                <button class="icon-btn" id="close-profile-btn"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="profile-content">
+                <div class="profile-avatar-wrapper" id="profile-avatar-trigger" title="Change photo">
+                    <img id="profile-avatar-img" src="" alt="Avatar">
+                    <div class="profile-avatar-overlay">
+                        <i class="ph ph-camera"></i>
+                    </div>
+                </div>
+                <button id="add-photo-text-btn" class="text-link-btn">Add photo</button>
+                <input type="file" id="avatar-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp">
+                
+                <div class="profile-editable-group title-group">
+                    <input type="text" id="profile-nickname-input" class="profile-input title-input" value="Nickname" readonly>
+                    <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                </div>
+                <p class="profile-status">Online</p>
+                
+                <div class="profile-info-section">
+                    <div class="info-group">
+                        <i class="ph ph-info"></i>
+                        <div class="info-text w-100">
+                            <span class="info-label">Bio</span>
+                            <div class="profile-editable-group">
+                                <input type="text" id="profile-bio-input" class="profile-input" placeholder="Tell a little about yourself" value="Fullstack Developer ✨" readonly>
+                                <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-group">
+                        <i class="ph ph-at"></i>
+                        <div class="info-text w-100">
+                            <span class="info-label">Username (Unique)</span>
+                            <div class="profile-editable-group">
+                                <input type="text" id="profile-username-input" class="profile-input" value="username" readonly>
+                                <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>require('./renderer.js');</script>
 </body>
