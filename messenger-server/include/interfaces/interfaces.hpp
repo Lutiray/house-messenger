@@ -55,6 +55,8 @@ public:
 
     virtual json getChatHistory(const std::string &my_nick, const std::string &other_nick, int before_id) = 0;
     virtual json getDialogsList(const std::string& my_nick) = 0;
+    virtual json getUserProfile(const std::string& username) = 0;
+    virtual bool updateUserProfile(const std::string& username, const std::string& field, const std::string& value) = 0;
     virtual json searchUsers(const std::string &query) = 0;
 };
 
