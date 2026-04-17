@@ -54,6 +54,8 @@ void CommandHandler::handle(const std::string& raw){
         else if (type == "send_msg") { handle_send_message(j); }
         else if (type == "get_history") { handle_get_history(j); }
         else if (type == "get_dialogs") { handle_get_dialogs(); }
+        else if (type == "get_profile") { handle_get_profile(j); }
+        else if (type == "update_profile") { handle_update_profile(j); }
         else {
             Logger::debug("Unknown packet type from " + _sender_name + ": " + type);
         }
@@ -140,6 +142,46 @@ void CommandHandler::handle_get_history(const json& j) {
 
 void CommandHandler::handle_get_dialogs() {
     _sender.send_json(_sender_sock, _db.getDialogsList(_sender_name));
+}
+
+void CommandHandler::handle_get_profile(const json &j) {
+    std::string target_user = j.value("username", _sender_name);
+
+    json profile = _db.getUserProfile(target_user);
+    if(!profile.empty()) {
+        _sender.send_json(_sender_sock, profile);
+    }
+}
+
+void CommandHandler::handle_update_profile(const json& j) {
+    std::string html_field_id = j.value("field", "");
+    std::string value = j.value("value", "");
+
+    std::string db_field = "";
+    if (html_field_id == "profile-nickname-input") db_field = "display_name";
+    else if (html_field_id == "profile-bio-input") db_field = "bio";
+    else if (html_field_id == "avatar_url") db_field = "avatar_url";
+    else if (html_field_id == "profile-username-input") db_field = "username"; // <-- ДОБАВИЛИ
+
+    if (!db_field.empty()) {
+        if (_db.updateUserProfile(_sender_name, db_field, value)) {
+            if (db_field == "username") {
+                _sender_name = value; 
+                _sender.send_json(_sender_sock, {{"type", "username_changed"}, {"new_name", value}});
+            }
+            
+            json updated_profile = _db.getUserProfile(_sender_name);
+            _sender.send_json(_sender_sock, updated_profile);
+            
+        } else {
+            if (db_field == "username") {
+                reply("Error: The username '@" + value + "' is already taken. Please choose another one.");
+                
+                json updated_profile = _db.getUserProfile(_sender_name);
+                _sender.send_json(_sender_sock, updated_profile);
+            }
+        }
+    }
 }
 
 void CommandHandler::cmd_whisper(const std::string& target_nick, const std::string& message){
