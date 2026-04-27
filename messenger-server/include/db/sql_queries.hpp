@@ -11,6 +11,9 @@ namespace SQL {
         "password_salt TEXT NOT NULL DEFAULT '', "
         "email TEXT UNIQUE, "
         "phone TEXT UNIQUE"
+        "display_name TEXT, "
+        "bio TEXT, "
+        "avatar_url TEXT"
         ");";
     
     constexpr const char* CREATE_CHANNELS =
@@ -95,27 +98,18 @@ namespace SQL {
     // --- Dialogs ---
     constexpr const char* GET_DIALOGS =
         "SELECT m.id, "
-        "COALESCE( "
-        "(SELECT u2.username FROM channel_members cm2 "
-        "JOIN users u2 ON cm2.user_id = u2.id "
-        "WHERE cm2.channel_id = c.id AND cm2.user_id != ? LIMIT 1), "
-        "'Saved Messages' "
-        ") AS chat_name, "
-        "m.content, m.timestamp, "
-        "m.is_edited, "
+        "COALESCE((SELECT u2.username FROM channel_members cm2 JOIN users u2 ON cm2.user_id = u2.id WHERE cm2.channel_id = c.id AND cm2.user_id != ? LIMIT 1), 'Saved Messages') AS chat_name, "
+        "m.content, m.timestamp, m.is_edited, "
         "(SELECT username FROM users WHERE id=m.sender_id) AS last_sender, "
         "CASE WHEN m.id <= cm.last_read_msg_id THEN 1 ELSE 0 END AS is_read_by_me, "
         "CASE WHEN m.id <= COALESCE((SELECT last_read_msg_id FROM channel_members cm_other WHERE cm_other.channel_id = c.id AND cm_other.user_id != ? LIMIT 1), 0) THEN 1 ELSE 0 END AS is_read_by_them, "
-        "(SELECT COUNT(*) FROM messages m_unread WHERE m_unread.channel_id = c.id AND m_unread.id > cm.last_read_msg_id AND m_unread.sender_id != ?) AS unread_count "
+        "(SELECT COUNT(*) FROM messages m_unread WHERE m_unread.channel_id = c.id AND m_unread.id > cm.last_read_msg_id AND m_unread.sender_id != ?) AS unread_count, "
+        "(SELECT u3.avatar_url FROM channel_members cm3 JOIN users u3 ON cm3.user_id = u3.id WHERE cm3.channel_id = c.id AND cm3.user_id != ? LIMIT 1) AS chat_avatar "
         "FROM channel_members cm "
         "JOIN channels c ON cm.channel_id = c.id "
-        "JOIN ("
-        "SELECT channel_id, MAX(id) AS last_msg_id "
-        "FROM messages GROUP BY channel_id "
-        ") latest ON c.id = latest.channel_id "
+        "JOIN (SELECT channel_id, MAX(id) AS last_msg_id FROM messages GROUP BY channel_id) latest ON c.id = latest.channel_id "
         "JOIN messages m ON m.id = latest.last_msg_id "
-        "WHERE cm.user_id = ? "
-        "ORDER BY m.timestamp DESC;";
+        "WHERE cm.user_id = ? ORDER BY m.timestamp DESC;";
     
     // --- Channels ---
     constexpr const char* FIND_DIRECT_CHANNEL =
