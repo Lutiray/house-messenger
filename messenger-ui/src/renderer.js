@@ -1,45 +1,25 @@
 const { ipcRenderer } = require('electron');
 const UIManager = require('./ui_manager.js');
+const AuthManager = require('./auth_manager.js');
+const ProfileManager = require('./profile_manager.js');
 
-let myNickname = "";
+let myNickname = '';
 let lastTypingTime = 0;
 let activeChat = null;
 let editingMsgId = null;
-let oldestMsgId = 0;             
-let isLoadingHistory = false;    
+let oldestMsgId = 0;
+let isLoadingHistory = false;
 let hasMoreHistory = true;
 const onlineUsers = new Set();
 
-// --- DOM-elements ---
-const authScreen = document.getElementById('auth-screen');
-const chatScreen = document.getElementById('chat-screen');
-const regScreen = document.getElementById('reg-screen');
-const authStatus  = document.getElementById('auth-status');
-const regStatus = document.getElementById('reg-status');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
-const messagesContainer = document.getElementById('messenger-container');
+const messengerContainer = document.getElementById('messenger-container');
 const userListContainer = document.getElementById('user-list');
 const currentChatNameUI = document.getElementById('current-chat-name');
-const myAvatarPlaceholder = document.querySelector('.my-avatar-placeholder');
 const typingIndicator = document.getElementById('typing-indicator');
-
-// Buttons
-const regBtn = document.getElementById('reg-btn');
-const goToLoginBtn = document.getElementById('go-to-login');
-const loginBtn = document.getElementById('login-btn');
-const regSubmitBtn = document.getElementById('reg-submit-btn');
-const exitBtn  = document.getElementById('exit-btn');
 const scrollBottomBtn = document.getElementById('scroll-bottom-btn');
 
-// Fields of auth
-const loginUserInp = document.getElementById('username');
-const loginPassInp = document.getElementById('password');
-const regUserInp = document.getElementById('reg-username');
-const regPassInp = document.getElementById('reg-password');
-const regPassConfInp = document.getElementById('reg-password-confirm');
-const regEmailInp = document.getElementById('reg-email');
-const regPhoneInp = document.getElementById('reg-phone');
 const emptyChatState = document.getElementById('empty-chat-state');
 const activeChatArea = document.getElementById('active-chat-area');
 const chatSubtitleUI = document.getElementById('chat-subtitle');
@@ -52,30 +32,25 @@ const closeDetailsBtn = document.getElementById('close-details-btn');
 const chatDetailsPanel = document.getElementById('chat-details-panel');
 const attachBtn = document.getElementById('attach-btn');
 const fileUploadInput = document.getElementById('file-upload-input');
+const headerAvatar = document.getElementById('current-chat-avatar');
 
-// --- Profile Modal Logic ---
-const profileBtn = document.querySelector('.my-avatar-placeholder');
-const profileModal = document.getElementById('profile-modal');
-const profileOverlay = document.getElementById('profile-overlay');
-const closeProfileBtn = document.getElementById('close-profile-btn');
-const profileAvatarImg = document.getElementById('profile-avatar-img');
-const profileUsernameDisplay = document.getElementById('profile-username-display');
-const profileUsernameTag = document.getElementById('profile-username-tag');
-const avatarTrigger = document.getElementById('profile-avatar-trigger');
-const addPhotoTextBtn = document.getElementById('add-photo-text-btn');
-const avatarUploadInput = document.getElementById('avatar-upload-input');
-const nicknameInput = document.getElementById('profile-nickname-input');
-const usernameInput = document.getElementById('profile-username-input');
-const bioInput = document.getElementById('profile-bio-input');
 // --- Initialization of UI-modules ---
 UIManager.initNavMenu();
-UIManager.initContextMenu(messagesContainer, () => myNickname, ipcRenderer, (msgId, oldText) => {
-    editingMsgId = msgId;
-    messageInput.value = oldText;
-    editPreviewText.textContent = oldText;
-    editIndicator.classList.remove('hidden');
-    messageInput.focus();
-});
+AuthManager.init(ipcRenderer);
+ProfileManager.init(ipcRenderer);
+
+UIManager.initContextMenu(
+    messengerContainer,
+    () => myNickname,
+    ipcRenderer,
+    (msgId, oldText) => {
+        editingMsgId = msgId;
+        messageInput.value = oldText;
+        editPreviewText.textContent = oldText;
+        editIndicator.classList.remove('hidden');
+        messageInput.focus();
+    },
+);
 
 cancelEditBtn.onclick = () => {
     editingMsgId = null;
@@ -84,36 +59,45 @@ cancelEditBtn.onclick = () => {
 };
 
 // --- Observers ---
-const readObserver = new IntersectionObserver((entries, observer) => {
-    const sendersToMark = new Set();
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const sender = entry.target.dataset.sender;
-            if (sender && sender === activeChat) {
-                sendersToMark.add(sender);
+const readObserver = new IntersectionObserver(
+    (entries, observer) => {
+        const sendersToMark = new Set();
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                const sender = entry.target.dataset.sender;
+                if (sender && sender === activeChat) {
+                    sendersToMark.add(sender);
+                }
+                observer.unobserve(entry.target);
             }
-            observer.unobserve(entry.target);
-        }
-    });
+        });
 
-    sendersToMark.forEach(sender => {
-        ipcRenderer.send('to-cpp', JSON.stringify({ type: "mark_read", from: sender }));
-    });
-}, { threshold: 0.6 });
+        sendersToMark.forEach((sender) => {
+            ipcRenderer.send('to-cpp', JSON.stringify({ type: 'mark_read', from: sender }));
+        });
+    },
+    { threshold: 0.6 },
+);
 
 const topSentinel = document.createElement('div');
 topSentinel.style.height = '1px';
 
-const historyObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && ! isLoadingHistory && hasMoreHistory && activeChat) {
-        isLoadingHistory = true;
-        ipcRenderer.send('to-cpp', JSON.stringify({
-            type: 'get_history',
-            user: activeChat,
-            before_id: oldestMsgId
-        }));
-    }
-}, { root: messagesContainer, threshold: 0.1 });
+const historyObserver = new IntersectionObserver(
+    (entries) => {
+        if (entries[0].isIntersecting && !isLoadingHistory && hasMoreHistory && activeChat) {
+            isLoadingHistory = true;
+            ipcRenderer.send(
+                'to-cpp',
+                JSON.stringify({
+                    type: 'get_history',
+                    user: activeChat,
+                    before_id: oldestMsgId,
+                }),
+            );
+        }
+    },
+    { root: messengerContainer, threshold: 0.1 },
+);
 
 // --- Helpers ---
 function setChatStatus(isOnline) {
@@ -127,41 +111,72 @@ let dialogsDebounceTimer = null;
 function requestDialogsDebounced(delay = 500) {
     clearTimeout(dialogsDebounceTimer);
     dialogsDebounceTimer = setTimeout(() => {
-        ipcRenderer.send('to-cpp', JSON.stringify({type: 'get_dialogs'}));
+        ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_dialogs' }));
     }, delay);
 }
 
 function openChat(chatName) {
     activeChat = chatName;
-    currentChatNameUI.innerText = chatName;
-    setChatStatus(onlineUsers.has(chatName));
-    
+
+    if (messengerContainer) {
+        messengerContainer.classList.add('private-chat');
+    }
+    if (headerAvatar) headerAvatar.classList.remove('hidden');
+
+    if (chatName === myNickname) {
+        currentChatNameUI.innerHTML = 'Saved Messages';
+        if (headerAvatar) {
+            headerAvatar.src = 'https://ui-avatars.com/api/?name=SM&background=5b7cff&color=fff';
+        }
+        if (typeof chatSubtitleUI !== 'undefined' && chatSubtitleUI) {
+            chatSubtitleUI.textContent = 'your personal cloud';
+            chatSubtitleUI.className = 'chat-subtitle status-online';
+        }
+    } else {
+        currentChatNameUI.innerText = chatName;
+        setChatStatus(onlineUsers.has(chatName));
+
+        if (headerAvatar) {
+            const dialogNames = Array.from(document.querySelectorAll('.dialog-name'));
+            const dialogItem = dialogNames.find((el) => el.textContent === chatName);
+
+            if (dialogItem) {
+                const img = dialogItem.closest('.dialog-item').querySelector('.dialog-avatar');
+                headerAvatar.src = img ? img.src : UIManager.getAvatarUrl(chatName, 40);
+            } else {
+                headerAvatar.src = UIManager.getAvatarUrl(chatName, 40);
+            }
+        }
+    }
+
     emptyChatState.classList.add('hidden');
     activeChatArea.classList.remove('hidden');
 
-    document.querySelectorAll('.dialog-item').forEach(el => {
-        el.classList.toggle('active', el.querySelector('.dialog-name')?.textContent === chatName);
+    document.querySelectorAll('.dialog-item').forEach((el) => {
+        const nameInList = el.querySelector('.dialog-name')?.textContent;
+        const targetName = chatName === myNickname ? 'Saved Messages' : chatName;
+        el.classList.toggle('active', nameInList === targetName);
     });
 
     oldestMsgId = 0;
     hasMoreHistory = true;
     isLoadingHistory = false;
 
-    historyObserver.unobserve(topSentinel);
-    messagesContainer.innerHTML = '';
-    ipcRenderer.send('to-cpp', JSON.stringify({type: 'get_history', user: chatName}));
+    if (typeof historyObserver !== 'undefined' && typeof topSentinel !== 'undefined') {
+        historyObserver.unobserve(topSentinel);
+    }
+
+    messengerContainer.innerHTML = '';
+    ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_history', user: chatName }));
     messageInput.focus();
 }
 
 // === PACKET HANDLERS ===
 const PacketHandlers = {
-
-    'auth_response': (data) => {
+    auth_response: (data) => {
         if (data.status === 'success') {
-            myNickname = data.username; 
-            authScreen.classList.add('hidden');
-            regScreen.classList.add('hidden');
-            chatScreen.classList.remove('hidden');
+            myNickname = data.username;
+            AuthManager.onAuthSuccess();
 
             if (myAvatarPlaceholder) {
                 const img = document.createElement('img');
@@ -175,72 +190,77 @@ const PacketHandlers = {
 
             ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_dialogs' }));
         } else {
-            if (authStatus) authStatus.textContent = data.message;
-            if (regStatus)  regStatus.textContent  = data.message;
+            AuthManager.showError(data.message);
         }
     },
 
-    'chat_msg': (data) => {
+    chat_msg: (data) => {
         if (data.from === activeChat || data.from === myNickname || data.to === activeChat) {
-            const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 100;
+            const isNearBottom =
+                messengerContainer.scrollHeight - messengerContainer.scrollTop <= messengerContainer.clientHeight + 100;
 
             UIManager.addMessage(
-                messagesContainer,
-                data.from, data.text, data.id,
+                messengerContainer,
+                data.from,
+                data.text,
+                data.id,
                 data.timestamp,
                 data.from === myNickname,
                 data.is_read === 1,
-                readObserver
+                readObserver,
             );
 
             if (data.from === myNickname || isNearBottom) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                messengerContainer.scrollTop = messengerContainer.scrollHeight;
             }
         }
         requestDialogsDebounced();
     },
 
-    'dialogs_list': (data) => {
+    dialogs_list: (data) => {
         UIManager.renderDialogsList(userListContainer, data.data, myNickname, openChat);
     },
 
-    'history': (data) => {
+    history: (data) => {
         if (!data.data || data.chat_with !== activeChat) return;
 
-        if (data.data.length === 0){
+        if (data.data.length === 0) {
             hasMoreHistory = false;
             isLoadingHistory = false;
             return;
         }
 
-        const isInitialLoad = (oldestMsgId === 0);
+        const isInitialLoad = oldestMsgId === 0;
 
         if (isInitialLoad) {
-            messagesContainer.innerHTML = ''; 
-            messagesContainer.appendChild(topSentinel); 
+            messengerContainer.innerHTML = '';
+            messengerContainer.appendChild(topSentinel);
             historyObserver.observe(topSentinel);
 
             let firstUnreadFound = false;
             let dividerElement = null;
 
-            data.data.forEach(m => {
+            data.data.forEach((m) => {
                 const isOwn = m.from === myNickname;
                 const isRead = m.is_read === 1;
 
-                if (!isOwn && !isRead && !firstUnreadFound){
+                if (!isOwn && !isRead && !firstUnreadFound) {
                     firstUnreadFound = true;
                     dividerElement = document.createElement('div');
                     dividerElement.className = 'unread-divider';
                     dividerElement.innerHTML = '<span>New messages</span>';
-                    messagesContainer.appendChild(dividerElement);
+                    messengerContainer.appendChild(dividerElement);
                 }
 
                 UIManager.addMessage(
-                    messagesContainer,
-                    m.from, m.text, m.id, m.time,
+                    messengerContainer,
+                    m.from,
+                    m.text,
+                    m.id,
+                    m.time,
                     m.from === myNickname,
                     m.is_read === 1,
-                    readObserver
+                    readObserver,
                 );
 
                 if (oldestMsgId === 0 || m.id < oldestMsgId) {
@@ -250,50 +270,53 @@ const PacketHandlers = {
 
             requestAnimationFrame(() => {
                 if (dividerElement) {
-                    dividerElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    dividerElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    messengerContainer.scrollTop = messengerContainer.scrollHeight;
                 }
             });
-
         } else {
-            const oldScrollHeight = messagesContainer.scrollHeight;
+            const oldScrollHeight = messengerContainer.scrollHeight;
 
             for (let i = data.data.length - 1; i >= 0; i--) {
                 const m = data.data[i];
-
                 UIManager.addMessage(
-                    messagesContainer, m.from, m.text, m.id, m.time,
-                    m.from === myNickname, m.is_read === 1, 
-                    readObserver, topSentinel
+                    messengerContainer,
+                    m.from,
+                    m.text,
+                    m.id,
+                    m.time,
+                    m.from === myNickname,
+                    m.is_read === 1,
+                    readObserver,
+                    topSentinel,
                 );
-
                 if (m.id < oldestMsgId) {
                     oldestMsgId = m.id;
                 }
             }
             if (oldScrollHeight > 0) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight - oldScrollHeight;
+                messengerContainer.scrollTop = messengerContainer.scrollHeight - oldScrollHeight;
             }
         }
         isLoadingHistory = false;
     },
 
-    'status': (data) => {
+    status: (data) => {
         data.online ? onlineUsers.add(data.user) : onlineUsers.delete(data.user);
         if (activeChat === data.user) {
             setChatStatus(data.online);
         }
     },
 
-    'user_list': (data) => {
+    user_list: (data) => {
         if (data.users) {
             onlineUsers.clear();
-            data.users.forEach(u => onlineUsers.add(u));
+            data.users.forEach((u) => onlineUsers.add(u));
         }
     },
 
-    'typing': (data) => {
+    typing: (data) => {
         if (!typingIndicator || data.from !== activeChat || activeChat === myNickname) return;
         typingIndicator.textContent = `${data.from} is typing...`;
         typingIndicator.classList.remove('hidden');
@@ -303,30 +326,29 @@ const PacketHandlers = {
         }, 3000);
     },
 
-    'msg_deleted': (data) => {
-        const msgEl = messagesContainer.querySelector(`.message[data-id="${data.id}"]`);
+    msg_deleted: (data) => {
+        const msgEl = messengerContainer.querySelector(`.message[data-id="${data.id}"]`);
         if (msgEl) msgEl.remove();
     },
 
-    'msg_edited': (data) => {
-        const msgEl = messagesContainer.querySelectorAll('.message.own .read-receipt i');
+    msg_edited: (data) => {
+        const msgEl = messengerContainer.querySelector(`.message[data-id="${data.id}"]`);
         UIManager.setMessageEdited(msgEl, data.text);
     },
 
-    'msg_read': (data) => {
+    msg_read: (data) => {
         if (activeChat !== data.by) return;
-        messagesContainer.querySelectorAll('.message.own .read-receipt i').forEach(icon => {
+        messengerContainer.querySelectorAll('.message.own .read-receipt i').forEach((icon) => {
             icon.className = 'ph ph-checks';
-            icon.style.color = 'var(--accent)';
         });
     },
 
-    'system': (data) => {
+    system: (data) => {
         if (!data.text) return;
-        UIManager.addMessage(messagesContainer, 'System', data.text, null, 'now', false, false, null);
+        UIManager.addMessage(messengerContainer, 'System', data.text, null, 'now', false, false, null);
     },
 
-    'search_results': (data) => {
+    search_results: (data) => {
         userListContainer.innerHTML = '';
         if (!data.users || data.users.length === 0) {
             const empty = document.createElement('div');
@@ -336,10 +358,10 @@ const PacketHandlers = {
             return;
         }
 
-        data.users.forEach(user => {
+        data.users.forEach((user) => {
             const li = document.createElement('li');
             li.className = 'dialog-item';
-            
+
             const avatar = document.createElement('img');
             avatar.src = UIManager.getAvatarUrl(user, 40);
             avatar.className = 'dialog-avatar';
@@ -379,19 +401,12 @@ const PacketHandlers = {
         });
     },
 
-    'user_profile': (data) => {
-        profileAvatarImg.src = data.avatar_url ? data.avatar_url : UIManager.getAvatarUrl(data.display_name, 120);
-
-        nicknameInput.value = data.display_name;
-        usernameInput.value = data.username;
-        bioInput.value = data.bio;
-
-        profileUsernameDisplay.textContent = data.display_name;
-        profileUsernameTag.textContent = '@' + data.username;
+    user_profile: (data) => {
+        ProfileManager.fillProfileData(data);
     },
 
-    'username_changed': (data) => {
-        myNickname = data.new_name; 
+    username_changed: (data) => {
+        myNickname = data.new_name;
         ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_dialogs' }));
     },
 };
@@ -399,71 +414,19 @@ const PacketHandlers = {
 // --- IPC ---
 ipcRenderer.on('from-cpp', (event, rawJson) => {
     try {
-        const packets = rawJson.split('\n').filter(p => p.trim() !== '');
-        packets.forEach(packet => {
+        const packets = rawJson.split('\n').filter((p) => p.trim() !== '');
+        packets.forEach((packet) => {
             const data = JSON.parse(packet);
-            if (PacketHandlers[data.type]){
+            if (PacketHandlers[data.type]) {
                 PacketHandlers[data.type](data);
             } else {
-                console.warn("[Client] Unknown packet type from server:", data.type);
+                console.warn('[Client] Unknown packet type from server:', data.type);
             }
         });
     } catch (e) {
-        console.log("Non-JSON output from C++: ", rawJson);
+        console.log('Non-JSON output from C++: ', rawJson);
     }
 });
-
-// --- Auth ---
-regBtn.onclick = () => {
-    authScreen.classList.add('hidden');
-    regScreen.classList.remove('hidden');
-    if (authStatus) authStatus.textContent = '';
-};
-
-goToLoginBtn.onclick = (e) => {
-    e.preventDefault(); 
-    regScreen.classList.add('hidden');
-    authScreen.classList.remove('hidden');
-    if (regStatus) regStatus.textContent = '';
-};
-
-loginBtn.onclick = () => {
-    const user = loginUserInp.value.trim();
-    const password = loginPassInp.value;
-    if (!user || !password) {
-        authStatus.textContent = 'Please fill in all fields';
-        return;
-    }
-
-    ipcRenderer.send('to-cpp', '/connect');
-    setTimeout(() => ipcRenderer.send('to-cpp', `/login ${user} ${password}`), 100);
-};
-
-regSubmitBtn.onclick = () => {
-    const user = regUserInp.value.trim();
-    const pass = regPassInp.value;
-    const confirm = regPassConfInp.value;
-    const email = regEmailInp.value.trim() || "none";
-    const phone = regPhoneInp.value.trim() || "none";
-
-    if (!user || !pass) {
-        regStatus.textContent = 'Username and password are required';
-        return;
-    }
-
-    if (pass !== confirm) {
-        regStatus.textContent = 'Passwords do not match!';
-        return;
-    }
-
-    ipcRenderer.send('to-cpp', '/connect');
-    setTimeout(() => ipcRenderer.send('to-cpp', `/reg ${user} ${pass} ${email} ${phone}`), 100);
-};
-
-exitBtn.onclick = () => {
-    ipcRenderer.send('to-cpp', '/exit');
-    ipcRenderer.send('restart-app');
-};
 
 // --- Messaging ---
 messageInput.addEventListener('input', () => {
@@ -471,7 +434,7 @@ messageInput.addEventListener('input', () => {
     const now = Date.now();
     if (now - lastTypingTime > 2000) {
         lastTypingTime = now;
-        ipcRenderer.send('to-cpp', JSON.stringify({ type: "typing", to: activeChat }));
+        ipcRenderer.send('to-cpp', JSON.stringify({ type: 'typing', to: activeChat }));
     }
 });
 
@@ -483,25 +446,40 @@ messageForm.onsubmit = (e) => {
     if (!text) return;
 
     if (editingMsgId) {
-        ipcRenderer.send('to-cpp', JSON.stringify({ type: 'edit_msg', id: editingMsgId, text }));
+        ipcRenderer.send(
+            'to-cpp',
+            JSON.stringify({
+                type: 'edit_msg',
+                id: Number(editingMsgId),
+                text,
+            }),
+        );
         editingMsgId = null;
         editIndicator.classList.add('hidden');
     } else {
-        ipcRenderer.send('to-cpp', JSON.stringify({ type: 'send_msg', to: activeChat, content: text }));
+        ipcRenderer.send(
+            'to-cpp',
+            JSON.stringify({
+                type: 'send_msg',
+                to: activeChat,
+                content: text,
+            }),
+        );
     }
     messageInput.value = '';
 };
 
 // --- Scroll button ---
-if (messagesContainer && scrollBottomBtn) {
-    messagesContainer.addEventListener('scroll', () => {
-        const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+if (messengerContainer && scrollBottomBtn) {
+    messengerContainer.addEventListener('scroll', () => {
+        const distanceFromBottom =
+            messengerContainer.scrollHeight - messengerContainer.scrollTop - messengerContainer.clientHeight;
         scrollBottomBtn.classList.toggle('hidden', distanceFromBottom <= 150);
     });
     scrollBottomBtn.addEventListener('click', () => {
-        messagesContainer.scrollTo({
-            top: messagesContainer.scrollHeight,
-            behavior: 'smooth'
+        messengerContainer.scrollTo({
+            top: messengerContainer.scrollHeight,
+            behavior: 'smooth',
         });
     });
 }
@@ -517,31 +495,34 @@ if (attachBtn && fileUploadInput) {
         const file = e.target.files[0];
         if (!file) return;
 
-        messageInput.placeholder = "Uploading file...";
+        messageInput.placeholder = 'Uploading file...';
         messageInput.disabled = true;
 
         try {
             const response = await fetch(`http://localhost:8081/upload`, {
                 method: 'POST',
                 headers: {
-                    'filename': encodeURIComponent(file.name) 
+                    filename: encodeURIComponent(file.name),
                 },
-                body: file
+                body: file,
             });
             const data = await response.json();
             if (data.status === 'success') {
-                ipcRenderer.send('to-cpp', JSON.stringify({
-                    type: 'send_msg',
-                    to: activeChat,
-                    content: data.url
-                }));
+                ipcRenderer.send(
+                    'to-cpp',
+                    JSON.stringify({
+                        type: 'send_msg',
+                        to: activeChat,
+                        content: data.url,
+                    }),
+                );
             } else {
-                console.error("Upload error from server: ", data.error);
+                console.error('Upload error from server: ', data.error);
             }
         } catch (error) {
-            console.error("Fetch failed: ", error);
+            console.error('Fetch failed: ', error);
         } finally {
-            messageInput.placeholder = "Type something...";
+            messageInput.placeholder = 'Type something...';
             messageInput.disabled = false;
             fileUploadInput.value = '';
         }
@@ -553,91 +534,15 @@ if (searchInput) {
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         if (query.startsWith('@') && query.length > 1) {
-            ipcRenderer.send('to-cpp', JSON.stringify({ type: "search_user", query}));
-        } 
-        else if (query === '' || query === '@') {
+            ipcRenderer.send('to-cpp', JSON.stringify({ type: 'search_user', query }));
+        } else if (query === '' || query === '@') {
             requestDialogsDebounced(0);
         }
     });
 }
 
-function openProfile() {
-    profileAvatarImg.src = UIManager.getAvatarUrl(myNickname, 120);
-    nicknameInput.value = myNickname; 
-    usernameInput.value = myNickname;
-    bioInput.value = "Hello!";
-    [nicknameInput, usernameInput, bioInput].forEach(
-        input => input.setAttribute('readonly', 'true'
-        ));
-    
-    profileModal.classList.remove('hidden');
-    [nicknameInput, usernameInput, bioInput].forEach(input => input.setAttribute('readonly', 'true'));
-    ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_profile' }));
-}
-
-function closeProfile() {
-    profileModal.classList.add('hidden');
-}
-
-if (profileBtn) profileBtn.onclick = openProfile;
-if (closeProfileBtn) closeProfileBtn.onclick = closeProfile;
-if (profileOverlay) profileOverlay.onclick = closeProfile;
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !profileModal.classList.contains('hidden')) {
-        closeProfile();
-    }
-});
-
-document.querySelectorAll('.profile-editable-group .edit-icon-btn').forEach(icon => {
-    icon.onclick = (e) => {
-        const input = e.target.previousElementSibling;
-        input.removeAttribute('readonly');
-        input.focus();
-
-        const val = input.value;
-        input.value = '';
-        input.value = val;
-    };
-});
-
-document.querySelectorAll('.profile-input').forEach(input => {
-    const lockInput = () => {
-        input.setAttribute('readonly', 'true');
-        if (input.value.trim() !== '') {
-            ipcRenderer.send('to-cpp', JSON.stringify({ 
-                type: 'update_profile', 
-                field: input.id, 
-                value: input.value.trim() 
-            }));
-        }
-    };
-
-    input.addEventListener('blur', lockInput);
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            input.blur();
-        }
-    });
-});
-
-const triggerUpload = () => avatarUploadInput.click();
-if (avatarTrigger) avatarTrigger.onclick = triggerUpload;
-if (addPhotoTextBtn) addPhotoTextBtn.onclick = triggerUpload;
-
-avatarUploadInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file){
-        console.log("Selected file for avatar: ", file.name);
-        const reader = new FileReader();
-        reader.onload = (e) => profileAvatarImg.src = e.target.result;
-        reader.readAsDataURL(file);
-    }
-});
 // --- Details panel ---
 if (toggleDetailsBtn && closeDetailsBtn && chatDetailsPanel) {
     toggleDetailsBtn.onclick = () => chatDetailsPanel.classList.toggle('hidden');
-    closeDetailsBtn.onclick  = () => chatDetailsPanel.classList.add('hidden');
+    closeDetailsBtn.onclick = () => chatDetailsPanel.classList.add('hidden');
 }
-
-
