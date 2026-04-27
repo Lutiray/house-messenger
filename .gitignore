@@ -28,6 +28,7 @@ messenger-ui/node_modules/
 # Electron-builder output files
 messenger-ui/dist/
 messenger-ui/out/
+messenger-ui/.prettierrc
  
 # Logs
 npm-debug.log*
