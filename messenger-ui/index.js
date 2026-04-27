@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { app, BrowserWindow, ipcMain } = require('electron');
-const{ spawn } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 
 let mainWindow;
@@ -11,32 +11,32 @@ function startCppClient() {
     const exeDir = path.dirname(exePath);
 
     if (cppClient) {
-        console.log("Killing existing C++ client...");
+        console.log('Killing existing C++ client...');
         cppClient.kill();
         cppClient = null;
     }
 
     if (fs.existsSync(exePath)) {
-        console.log("Starting C++ Executable...");
+        console.log('Starting C++ Executable...');
         cppClient = spawn(exePath, [], { cwd: exeDir });
 
         cppClient.stdout.on('data', (data) => {
             const str = data.toString().trim();
-            console.log("C++ Output:", str);
+            console.log('C++ Output:', str);
             if (mainWindow) {
                 mainWindow.webContents.send('from-cpp', str);
             }
         });
 
         cppClient.stderr.on('data', (data) => {
-            console.error("C++ Error:", data.toString());
+            console.error('C++ Error:', data.toString());
         });
 
         cppClient.on('close', (code) => {
             console.log(`C++ Client exited with code ${code}`);
         });
     } else {
-        console.error("CRITICAL ERROR: C++ Executable NOT FOUND at:", exePath);
+        console.error('CRITICAL ERROR: C++ Executable NOT FOUND at:', exePath);
     }
 }
 
@@ -45,13 +45,13 @@ function createWindow() {
         width: 800,
         height: 600,
         webPreferences: {
-            nodeIntegration : true,
+            nodeIntegration: true,
             contextIsolation: false,
-            nodeIntegrationInWorker: true
-        }
+            nodeIntegrationInWorker: true,
+        },
     });
 
-    mainWindow.loadFile("src/index.html");
+    mainWindow.loadFile('src/index.html');
     if (!app.isPackaged) mainWindow.webContents.openDevTools();
 
     startCppClient();
@@ -59,12 +59,12 @@ function createWindow() {
 
 ipcMain.on('to-cpp', (event, arg) => {
     if (cppClient && cppClient.stdin.writable) {
-        cppClient.stdin.write(arg + "\n");
+        cppClient.stdin.write(arg + '\n');
     }
 });
 
 ipcMain.on('restart-app', () => {
-    console.log("Restarting UI and C++ Client...");
+    console.log('Restarting UI and C++ Client...');
     startCppClient();
     mainWindow.reload();
 });
