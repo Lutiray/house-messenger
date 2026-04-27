@@ -1,5 +1,4 @@
 class UIManager {
-
     static getAvatarUrl(name, size = 40) {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=${size}`;
     }
@@ -11,8 +10,8 @@ class UIManager {
         }
 
         const parts = timestampStr.split(/[- :]/);
-        if (parts.length >= 5){
-            const d = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5] || 0));
+        if (parts.length >= 5) {
+            const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5] || 0));
             if (!isNaN(d.getTime())) {
                 const h = d.getHours().toString().padStart(2, '0');
                 const m = d.getMinutes().toString().padStart(2, '0');
@@ -24,35 +23,41 @@ class UIManager {
 
     static getFileIcon(ext) {
         const map = {
-            pdf:  'ph ph-file-pdf',
-            doc:  'ph ph-file-doc',
+            pdf: 'ph ph-file-pdf',
+            doc: 'ph ph-file-doc',
             docx: 'ph ph-file-doc',
-            xls:  'ph ph-file-xls',
+            xls: 'ph ph-file-xls',
             xlsx: 'ph ph-file-xls',
-            zip:  'ph ph-file-zip',
-            rar:  'ph ph-file-zip',
-            txt:  'ph ph-file-text',
-            mp3:  'ph ph-file-audio',
-            wav:  'ph ph-file-audio',
+            zip: 'ph ph-file-zip',
+            rar: 'ph ph-file-zip',
+            txt: 'ph ph-file-text',
+            mp3: 'ph ph-file-audio',
+            wav: 'ph ph-file-audio',
         };
         return map[ext] || 'ph ph-file';
     }
 
-    static buildMessageBody(text){
+    static buildMessageBody(text) {
         const body = document.createElement('div');
         body.className = 'msg-text';
-        const isFileUrl = text.startsWith('http://localhost:') && text.includes('/files/');
+
+        const safeText = text ? String(text) : '';
+        const isFileUrl = safeText.startsWith(
+            ('http://localhost:' && text.includes('/files/')) || safeText.includes('/upload'),
+        );
+
         if (!isFileUrl) {
-            body.textContent = text;
+            const textSpan = document.createElement('span');
+            textSpan.className = 'actual-text';
+            textSpan.textContent = safeText;
+            body.appendChild(textSpan);
             return body;
         }
 
         const ext = text.split('.').pop().toLowerCase();
         const parts = text.split('/');
         const filenameWithTime = parts[parts.length - 1];
-        const originalName = decodeURIComponent(
-            filenameWithTime.substring(filenameWithTime.indexOf('_') + 1)
-        );
+        const originalName = decodeURIComponent(filenameWithTime.substring(filenameWithTime.indexOf('_') + 1));
 
         body.style.background = 'transparent';
         body.style.padding = '0';
@@ -69,8 +74,7 @@ class UIManager {
             img.onclick = () => UIManager.openLightbox(text);
             wrapper.appendChild(img);
             body.appendChild(wrapper);
-        } 
-        else if (vidExts.includes(ext)) {
+        } else if (vidExts.includes(ext)) {
             const wrapper = document.createElement('div');
             wrapper.className = 'msg-image';
             const video = document.createElement('video');
@@ -84,24 +88,24 @@ class UIManager {
                 video.muted = !video.muted;
                 video.controls = !video.muted;
             };
-            
+
             wrapper.appendChild(video);
             body.appendChild(wrapper);
         } else {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
             fileItem.onclick = () => window.open(text, '_blank');
- 
+
             const iconDiv = document.createElement('div');
             iconDiv.className = 'file-icon';
             const icon = document.createElement('i');
             icon.className = UIManager.getFileIcon(ext);
             iconDiv.appendChild(icon);
- 
+
             const nameDiv = document.createElement('div');
             nameDiv.className = 'file-name';
             nameDiv.textContent = originalName;
- 
+
             fileItem.appendChild(iconDiv);
             fileItem.appendChild(nameDiv);
             body.appendChild(fileItem);
@@ -142,20 +146,29 @@ class UIManager {
         }
     }
 
-    static addMessage(container, from, text, msgId, timestampStr, isOwn = false, 
-                        isRead = false, observer = null, insertAfterAnchor = null) {
+    static addMessage(
+        container,
+        from,
+        text,
+        msgId,
+        timestampStr,
+        isOwn = false,
+        isRead = false,
+        observer = null,
+        insertAfterAnchor = null,
+    ) {
         if (!container) return;
-        
+
         const msgDiv = document.createElement('div');
         msgDiv.className = 'message';
 
+        const safeText = text ? String(text) : '';
         if (from === 'System') {
             msgDiv.classList.add('system-msg');
             const body = document.createElement('div');
             body.className = 'msg-text';
             body.innerText = text;
             msgDiv.appendChild(body);
-            container.appendChild(msgDiv);
             UIManager._insertAfterAnchor(container, msgDiv, insertAfterAnchor);
             return msgDiv;
         }
@@ -180,19 +193,20 @@ class UIManager {
 
         const header = document.createElement('div');
         header.className = 'msg-header';
-        
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'msg-name';
         nameSpan.textContent = from;
+        header.appendChild(nameSpan);
 
         const timeSpan = document.createElement('span');
         timeSpan.className = 'msg-time';
         timeSpan.textContent = UIManager.formatTime(timestampStr);
-        
+
         if (isOwn) {
             const checkIcon = document.createElement('span');
             checkIcon.className = 'read-receipt';
- 
+
             const icon = document.createElement('i');
             icon.className = isRead ? 'ph ph-checks' : 'ph ph-check';
             icon.dataset.read = isRead ? '1' : '0';
@@ -200,16 +214,14 @@ class UIManager {
             timeSpan.appendChild(checkIcon);
         }
 
-        header.appendChild(nameSpan);
-        header.appendChild(timeSpan);
+        const body = UIManager.buildMessageBody(safeText);
 
-        const body = UIManager.buildMessageBody(text);
-
+        body.appendChild(timeSpan);
         contentDiv.appendChild(header);
         contentDiv.appendChild(body);
         msgDiv.appendChild(avatarImg);
         msgDiv.appendChild(contentDiv);
-        
+
         UIManager._insertAfterAnchor(container, msgDiv, insertAfterAnchor);
         return msgDiv;
     }
@@ -229,8 +241,8 @@ class UIManager {
         let savedMessagesDialog = null;
         const otherDialogs = [];
 
-        dialogsArray.forEach(dialog => {
-            if (dialog.chat_name === "Saved Messages" || dialog.chat_name === myNickname) {
+        dialogsArray.forEach((dialog) => {
+            if (dialog.chat_name === 'Saved Messages' || dialog.chat_name === myNickname) {
                 savedMessagesDialog = dialog;
             } else {
                 otherDialogs.push(dialog);
@@ -239,36 +251,50 @@ class UIManager {
 
         if (savedMessagesDialog) {
             listElement.appendChild(
-                UIManager._buildDialogItem("Saved Messages", savedMessagesDialog, myNickname, () => onChatClick(myNickname), true)
+                UIManager._buildDialogItem(
+                    'Saved Messages',
+                    savedMessagesDialog,
+                    myNickname,
+                    () => onChatClick(myNickname),
+                    true,
+                ),
             );
         }
 
-        otherDialogs.forEach(dialog => {
+        otherDialogs.forEach((dialog) => {
             listElement.appendChild(
-                UIManager._buildDialogItem(dialog.chat_name, dialog, myNickname, () => onChatClick(dialog.chat_name), false)
+                UIManager._buildDialogItem(
+                    dialog.chat_name,
+                    dialog,
+                    myNickname,
+                    () => onChatClick(dialog.chat_name),
+                    false,
+                ),
             );
         });
     }
 
     static _buildDialogItem(displayTitle, dialog, myNickname, onChatClick, isSaved = false) {
         const li = document.createElement('li');
-        li.className = 'dialog-item'; 
+        li.className = 'dialog-item';
 
         const avatar = document.createElement('img');
-        avatar.src = isSaved ? 'https://ui-avatars.com/api/?name=SM&background=5b7cff&color=fff' : UIManager.getAvatarUrl(displayTitle, 40);
+        if (isSaved) avatar.src = 'https://ui-avatars.com/api/?name=SM&background=5b7cff&color=fff';
+        else if (dialog.avatar_url && dialog.avatar_url.trim() !== '') avatar.src = dialog.avatar_url;
+        else avatar.src = UIManager.getAvatarUrl(displayTitle, 40);
         avatar.className = 'dialog-avatar';
         avatar.alt = displayTitle;
-            
+
         const infoDiv = document.createElement('div');
         infoDiv.className = 'dialog-info';
-            
+
         const nameTimeDiv = document.createElement('div');
         nameTimeDiv.className = 'dialog-header';
-            
+
         const nameSpan = document.createElement('span');
         nameSpan.textContent = displayTitle;
         nameSpan.className = 'dialog-name';
-            
+
         const timeSpan = document.createElement('span');
         timeSpan.textContent = UIManager.formatTime(dialog.time);
         timeSpan.className = 'dialog-time';
@@ -278,7 +304,7 @@ class UIManager {
 
         const textBadgeDiv = document.createElement('div');
         textBadgeDiv.className = 'dialog-text-wrapper';
-            
+
         const textSpan = document.createElement('span');
         textSpan.textContent = dialog.text;
         textSpan.className = 'dialog-text';
@@ -289,9 +315,10 @@ class UIManager {
         if (!isSaved) {
             if (dialog.last_sender === myNickname) {
                 const tickIcon = document.createElement('i');
-                tickIcon.className = dialog.is_read_by_them === 1
-                    ? 'ph ph-checks dialog-tick-icon read' 
-                    : 'ph ph-check dialog-tick-icon unread';
+                tickIcon.className =
+                    dialog.is_read_by_them === 1
+                        ? 'ph ph-checks dialog-tick-icon read'
+                        : 'ph ph-check dialog-tick-icon unread';
                 badgeContainer.appendChild(tickIcon);
             } else {
                 if (dialog.unread_count > 0) {
@@ -303,24 +330,24 @@ class UIManager {
                 }
             }
         }
-        
+
         textBadgeDiv.appendChild(textSpan);
         textBadgeDiv.appendChild(badgeContainer);
 
         infoDiv.appendChild(nameTimeDiv);
-        infoDiv.appendChild(textBadgeDiv); 
+        infoDiv.appendChild(textBadgeDiv);
         li.appendChild(avatar);
         li.appendChild(infoDiv);
-            
+
         li.onclick = onChatClick;
         return li;
     }
 
     static initNavMenu() {
         const navItems = document.querySelectorAll('.app-nav .nav-item:not(#exit-btn)');
-        navItems.forEach(item => {
+        navItems.forEach((item) => {
             item.onclick = () => {
-                navItems.forEach(n => n.classList.remove('active'));
+                navItems.forEach((n) => n.classList.remove('active'));
                 item.classList.add('active');
             };
         });
@@ -337,7 +364,7 @@ class UIManager {
             const msgDiv = e.target.closest('.message');
             if (!msgDiv || !msgDiv.classList.contains('own')) return;
 
-            e.preventDefault(); 
+            e.preventDefault();
             selectedMsgId = parseInt(msgDiv.dataset.id);
             selectedMsgElement = msgDiv;
 
@@ -352,7 +379,8 @@ class UIManager {
             }
             editItem.style.display = canEdit ? '' : 'none';
 
-            const menuW = 185, menuH = 80;
+            const menuW = 185,
+                menuH = 80;
             const left = Math.min(e.pageX, window.innerWidth - menuW - 8);
             const top = Math.min(e.pageY, window.innerHeight - menuH - 8);
 
@@ -367,16 +395,14 @@ class UIManager {
 
         document.getElementById('ctx-delete').onclick = () => {
             if (selectedMsgId) {
-                ipcRenderer.send('to-cpp', JSON.stringify({ type: "delete_msg", id: selectedMsgId }));
+                ipcRenderer.send('to-cpp', JSON.stringify({ type: 'delete_msg', id: selectedMsgId }));
             }
         };
 
         document.getElementById('ctx-edit').onclick = () => {
             if (selectedMsgId && selectedMsgElement) {
-                const textNode = selectedMsgElement.querySelector('.msg-text');
-                const clone = textNode.cloneNode(true);
-                clone.querySelectorAll('span').forEach(s => s.remove());
-                const oldText = clone.textContent.trim();
+                const textSpan = selectedMsgElement.querySelector('.actual-text');
+                const oldText = textSpan ? textSpan.textContent.trim() : '';
 
                 contextMenu.classList.add('hidden');
                 if (onEditRequest) onEditRequest(selectedMsgId, oldText);
@@ -386,18 +412,27 @@ class UIManager {
 
     static setMessageEdited(msgElement, newText) {
         if (!msgElement) return;
-        const textEl = msgElement.querySelector('.msg-text');
-        if (!textEl) return;
 
-        const oldMark = textEl.querySelector('.edited-mark');
+        const textSpan = msgElement.querySelector('.actual-text');
+        if (textSpan) {
+            textSpan.textContent = newText;
+        } else {
+            const textEl = msgElement.querySelector('.msg-text');
+            if (textEl) textEl.textContent = newText;
+        }
+
+        const oldMark = textSpan.querySelector('.edited-mark');
         if (oldMark) oldMark.remove();
 
-        textEl.textContent = newText;
+        textSpan.textContent = newText;
 
-        const mark = document.createElement('span');
-        mark.className = 'edited-mark';
-        mark.textContent = ' (edited)';
-        textEl.appendChild(mark);
+        const timeSpan = msgElement.querySelector('.msg-time');
+        if (timeSpan && !msgElement.querySelector('.edited-mark')) {
+            const mark = document.createElement('span');
+            mark.className = 'edited-mark';
+            mark.textContent = ' (edited)';
+            timeSpan.prepend(mark);
+        }
     }
 }
 
