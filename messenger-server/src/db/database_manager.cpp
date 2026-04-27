@@ -246,6 +246,7 @@ json DatabaseManager::getDialogsList(const std::string& my_nick) {
     sqlite3_bind_int(stmt, 2, my_id);
     sqlite3_bind_int(stmt, 3, my_id);
     sqlite3_bind_int(stmt, 4, my_id);
+    sqlite3_bind_int(stmt, 5, my_id);
         
     while (stmt.step() == SQLITE_ROW) {
         json d;
@@ -256,7 +257,8 @@ json DatabaseManager::getDialogsList(const std::string& my_nick) {
         const char* time = (const char*)sqlite3_column_text(stmt, 3);
         int is_edited = sqlite3_column_int(stmt, 4);
         const char* last_sender = (const char*)sqlite3_column_text(stmt, 5);
-        
+        const char* chat_avatar = (const char*)sqlite3_column_text(stmt, 9);
+
         d["chat_name"] = chat_name ? chat_name : "Unknown";
         d["text"] = content ? content : "";
         d["time"] = time ? time : "";
@@ -265,6 +267,7 @@ json DatabaseManager::getDialogsList(const std::string& my_nick) {
         d["is_read_by_me"] = sqlite3_column_int(stmt, 6);
         d["is_read_by_them"] = sqlite3_column_int(stmt, 7);
         d["unread_count"] = sqlite3_column_int(stmt, 8);
+        d["avatar_url"] = chat_avatar ? chat_avatar : "";
         
         dialogs.push_back(d);
     }
