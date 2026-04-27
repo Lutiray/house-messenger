@@ -1,194 +1,248 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="
                 default-src 'self'; 
                 script-src 'self' 'unsafe-inline' https://unpkg.com;
                 style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; 
                 font-src 'self' https://cdn.jsdelivr.net https://unpkg.com;; 
                 img-src 'self' data: blob: https://ui-avatars.com http://localhost:8081; 
                 connect-src 'self' http://localhost:8081;
-            ">
-    <title>Messenger 2026</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-</head>
-<body>
-    <div id="auth-screen" class="screen">
-        <div class="auth-box">
-            <h1>Welcome back!</h1>
-            <input type="text" id="username" placeholder="Username">
-            <input type="password" id="password" placeholder="Password">
-            <div class="auth-buttons">
-                <button id="login-btn">Log In</button>
-                <button id="reg-btn" class="secondary">Sign Up</button>
+            "
+        />
+        <title>Messenger 2026</title>
+        <link rel="stylesheet" href="styles/main.css" />
+        <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    </head>
+    <body>
+        <div id="auth-screen" class="screen">
+            <div class="auth-box">
+                <h1>Welcome back!</h1>
+                <input type="text" id="username" placeholder="Username" />
+                <input type="password" id="password" placeholder="Password" />
+                <div class="auth-buttons">
+                    <button id="login-btn">Log In</button>
+                    <button id="reg-btn" class="secondary">Sign Up</button>
+                </div>
+                <p id="auth-status"></p>
             </div>
-            <p id="auth-status"></p>
         </div>
-    </div>
-
-    <div id="reg-screen" class="screen hidden">
-        <div class="auth-box">
-            <h1>Register</h1>
-            <input type="text" id="reg-username" placeholder="Choose Username">
-            <input type="email" id="reg-email" placeholder="Email (optional)">
-            <input type="tel" id="reg-phone" pattern="[+]?[0-9\s\-]{7,15}" autocomplete="tel" placeholder="Phone (optional)">
-            
-            <input type="password" id="reg-password" placeholder="Password">
-            <input type="password" id="reg-password-confirm" placeholder="Confirm Password">
-            <button id="reg-submit-btn">Register</button>
-            <a href="#" id="go-to-login" class="secondary-link">Already have an account? Log In</a>
-            <p id="reg-status"></p>
+        <div id="reg-screen" class="screen hidden">
+            <div class="auth-box">
+                <h1>Register</h1>
+                <input type="text" id="reg-username" placeholder="Choose Username" />
+                <input type="email" id="reg-email" placeholder="Email (optional)" />
+                <input
+                    type="tel"
+                    id="reg-phone"
+                    pattern="[+]?[0-9\s\-]{7,15}"
+                    autocomplete="tel"
+                    placeholder="Phone (optional)"
+                />
+                <input type="password" id="reg-password" placeholder="Password" />
+                <input type="password" id="reg-password-confirm" placeholder="Confirm Password" />
+                <button id="reg-submit-btn">Register</button>
+                <a href="#" id="go-to-login" class="secondary-link">Already have an account? Log In</a>
+                <p id="reg-status"></p>
+            </div>
         </div>
-    </div>
-
-    <div id="chat-screen" class="screen hidden">
-        <nav class="app-nav">
-            <div class="nav-item active" title="All chats"><i class="ph ph-chats"></i></div>
-
-            <div style="flex-grow: 1;"></div>
-            
-            <div class="nav-item" title="Settings"><i class="ph ph-gear"></i></div>
-            <div class="my-avatar-placeholder" title="My Profile">
-                <i class="ph ph-user"></i>
+        <div id="chat-screen" class="screen hidden">
+            <nav class="app-nav">
+                <div class="nav-item active" title="All chats">
+                    <i class="ph ph-chats"></i>
                 </div>
-            <button id="exit-btn" class="nav-item exit-icon" title="Log Out"><i class="ph ph-sign-out"></i></button>
-        </nav>
 
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Recent messages</h2>
-                <i class="ph ph-note-pencil edit-icon" id="new-chat-btn" title="New Chat / Group"></i>
-            </div>
-            <div class="sidebar-search">
-                <div class="search-box">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <input type="text" id="user-search-input" placeholder="Search (use @ to find the user)..." autocomplete="off">
+                <div style="flex-grow: 1"></div>
+
+                <div class="nav-item" title="Settings"><i class="ph ph-gear"></i></div>
+                <div class="my-avatar-placeholder" title="My Profile">
+                    <i class="ph ph-user"></i>
                 </div>
-            </div>
-            <ul id="user-list"></ul>
-        </aside>
-
-        <main class="chat-area">
-            <div id="empty-chat-state" class="empty-state">
-                <div class="empty-state-content">
-                    <i class="ph ph-chats-teardrop"></i>
-                    <p>Select a chat to start chatting</p>
-                </div>
-            </div>
-            
-            <div id="active-chat-area" class="hidden">
-                <header class="chat-header">
-                    <div class="chat-title-info">
-                        <div class="chat-title">
-                            <span id="current-chat-name"></span>
-                        </div>
-                        <span id="chat-subtitle" class="chat-subtitle"></span>
-                    </div>
-                    <div class="header-actions">
-                        <button class="icon-btn"><i class="ph ph-magnifying-glass"></i></button>
-                        <button class="icon-btn"><i class="ph ph-phone"></i></button>
-                        <button class="icon-btn"><i class="ph ph-video-camera"></i></button>
-                        <button class="icon-btn" id="toggle-details-btn"><i class="ph ph-dots-three-vertical"></i></button>
-                    </div>
-                </header>
-
-                <div id="messenger-container"></div>
-                <div id="typing-indicator" class="hidden"></div>            
-                <button id="scroll-bottom-btn" class="hidden">
-                    <i class="ph ph-caret-down"></i>
+                <button id="exit-btn" class="nav-item exit-icon" title="Log Out">
+                    <i class="ph ph-sign-out"></i>
                 </button>
-                <div id="edit-indicator" class="hidden">
-                    <div class="edit-indicator-info">
-                        <i class="ph ph-pencil-simple"></i>
-                        <div class="edit-indicator-text">
-                            <span class="edit-title">Edit message</span>
-                            <span class="edit-preview" id="edit-preview-text"></span>
-                        </div>
-                    </div>
-                    <i class="ph ph-x edit-cancel" id="cancel-edit-btn"></i>
+            </nav>
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Recent messages</h2>
+                    <i class="ph ph-note-pencil edit-icon" id="new-chat-btn" title="New Chat / Group"></i>
                 </div>
-                <form id="message-form">
-                    <button type="button" class="icon-btn" id="attach-btn"><i class="ph ph-paperclip"></i></button>
-                    <input type="file" id="file-upload-input" class="hidden">
-                    <input type="text" id="message-input" placeholder="Type something..." autocomplete="off">
-                    <button type="button" class="icon-btn"><i class="ph ph-smiley"></i></button>
-                    <button type="submit" id="send-btn" class="icon-btn send"><i class="ph ph-paper-plane-right"></i></button>
-                </form>
-            </div>
-        </main>
-        <aside class="details-panel hidden" id="chat-details-panel">
-            <div class="details-header">
-                <h3>Chat Details</h3>
-                <button class="icon-btn" id="close-details-btn"><i class="ph ph-x"></i></button>
-            </div>
-            <div class="details-content">
-                <p style="color: var(--text-muted); text-align: center; margin-top: 20px;">Media and files will be here</p>
-            </div>
-        </aside>
-    </div>
-    <div id="context-menu" class="hidden">
-        <div class="ctx-item" id="ctx-edit">
-            <i class="ph ph-pencil-simple"></i> Edit Message
-        </div>
-        <div class="ctx-item delete" id="ctx-delete">
-            <i class="ph ph-trash"></i> Delete Message
-        </div>
-    </div>
-    <div id="image-lightbox" class="hidden">
-        <div class="lightbox-overlay"></div>
-        <img id="lightbox-img" src="" alt="Fullscreen image">
-        <button id="lightbox-close"><i class="ph ph-x"></i></button>
-    </div>
-    <div id="profile-modal" class="hidden">
-        <div class="lightbox-overlay" id="profile-overlay"></div>
-        <div class="profile-card">
-            <div class="profile-header">
-                <h3>My Profile</h3>
-                <button class="icon-btn" id="close-profile-btn"><i class="ph ph-x"></i></button>
-            </div>
-            <div class="profile-content">
-                <div class="profile-avatar-wrapper" id="profile-avatar-trigger" title="Change photo">
-                    <img id="profile-avatar-img" src="" alt="Avatar">
-                    <div class="profile-avatar-overlay">
-                        <i class="ph ph-camera"></i>
+                <div class="sidebar-search">
+                    <div class="search-box">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input
+                            type="text"
+                            id="user-search-input"
+                            placeholder="Search (use @ to find the user)..."
+                            autocomplete="off"
+                        />
                     </div>
                 </div>
-                <button id="add-photo-text-btn" class="text-link-btn">Add photo</button>
-                <input type="file" id="avatar-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp">
-                
-                <div class="profile-editable-group title-group">
-                    <input type="text" id="profile-nickname-input" class="profile-input title-input" value="Nickname" readonly>
-                    <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                <ul id="user-list"></ul>
+            </aside>
+            <main class="chat-area">
+                <div id="empty-chat-state" class="empty-state">
+                    <div class="empty-state-content">
+                        <i class="ph ph-chats-teardrop"></i>
+                        <p>Select a chat to start chatting</p>
+                    </div>
                 </div>
-                <p class="profile-status">Online</p>
-                
-                <div class="profile-info-section">
-                    <div class="info-group">
-                        <i class="ph ph-info"></i>
-                        <div class="info-text w-100">
-                            <span class="info-label">Bio</span>
-                            <div class="profile-editable-group">
-                                <input type="text" id="profile-bio-input" class="profile-input" placeholder="Tell a little about yourself" value="Fullstack Developer ✨" readonly>
-                                <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                <div id="active-chat-area" class="hidden">
+                    <header class="chat-header">
+                        <div class="chat-title-info">
+                            <img id="current-chat-avatar" src="" alt="Avatar" class="chat-header-avatar hidden" />
+                            <div class="chat-header-text">
+                                <span id="current-chat-name" class="chat-name-title"></span>
+                                <span id="chat-subtitle" class="chat-subtitle"></span>
                             </div>
                         </div>
-                    </div>
-                    <div class="info-group">
-                        <i class="ph ph-at"></i>
-                        <div class="info-text w-100">
-                            <span class="info-label">Username (Unique)</span>
-                            <div class="profile-editable-group">
-                                <input type="text" id="profile-username-input" class="profile-input" value="username" readonly>
-                                <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                        <div class="header-actions">
+                            <button class="icon-btn">
+                                <i class="ph ph-magnifying-glass"></i>
+                            </button>
+                            <button class="icon-btn"><i class="ph ph-phone"></i></button>
+                            <button class="icon-btn">
+                                <i class="ph ph-video-camera"></i>
+                            </button>
+                            <button class="icon-btn" id="toggle-details-btn">
+                                <i class="ph ph-dots-three-vertical"></i>
+                            </button>
+                        </div>
+                    </header>
+                    <div id="messenger-container"></div>
+                    <div id="typing-indicator" class="hidden"></div>
+                    <button id="scroll-bottom-btn" class="hidden">
+                        <i class="ph ph-caret-down"></i>
+                    </button>
+                    <div id="edit-indicator" class="hidden">
+                        <div class="edit-indicator-info">
+                            <i class="ph ph-pencil-simple"></i>
+                            <div class="edit-indicator-text">
+                                <span class="edit-title">Edit message</span>
+                                <span class="edit-preview" id="edit-preview-text"></span>
                             </div>
                         </div>
+                        <i class="ph ph-x edit-cancel" id="cancel-edit-btn"></i>
                     </div>
+                    <form id="message-form">
+                        <button type="button" class="icon-btn" id="attach-btn">
+                            <i class="ph ph-paperclip"></i>
+                        </button>
+                        <input type="file" id="file-upload-input" class="hidden" />
+                        <input type="text" id="message-input" placeholder="Type something..." autocomplete="off" />
+                        <button type="button" class="icon-btn">
+                            <i class="ph ph-smiley"></i>
+                        </button>
+                        <button type="submit" id="send-btn" class="icon-btn send">
+                            <i class="ph ph-paper-plane-right"></i>
+                        </button>
+                    </form>
                 </div>
-            </div>
+            </main>
+            <aside class="details-panel hidden" id="chat-details-panel">
+                <div class="details-header">
+                    <h3>Chat Details</h3>
+                    <button class="icon-btn" id="close-details-btn">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="details-content">
+                    <p style="color: var(--text-muted); text-align: center; margin-top: 20px">
+                        Media and files will be here
+                    </p>
+                </div>
+            </aside>
         </div>
-    </div>
+        <div id="context-menu" class="hidden">
+            <div class="ctx-item" id="ctx-reply"><i class="ph ph-arrow-u-up-left"></i> Reply</div>
+            <div class="ctx-item" id="ctx-edit"><i class="ph ph-pencil-simple"></i> Edit Message</div>
+            <div class="ctx-item delete" id="ctx-delete"><i class="ph ph-trash"></i> Delete Message</div>
+        </div>
+        <div id="image-lightbox" class="hidden">
+            <div class="lightbox-overlay"></div>
+            <img id="lightbox-img" src="" alt="Fullscreen image" />
+            <button id="lightbox-close"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="profile-modal" class="hidden">
+            <div class="lightbox-overlay" id="profile-overlay"></div>
+            <div class="profile-card">
+                <div class="profile-header">
+                    <h3>My Profile</h3>
+                    <button class="icon-btn" id="close-profile-btn">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="profile-content">
+                    <div class="profile-avatar-wrapper" id="profile-avatar-trigger" title="Change photo">
+                        <img id="profile-avatar-img" src="" alt="Avatar" />
+                        <div class="profile-avatar-overlay">
+                            <i class="ph ph-camera"></i>
+                        </div>
+                    </div>
+                    <button id="add-photo-text-btn" class="text-link-btn">Add photo</button>
+                    <input
+                        type="file"
+                        id="avatar-upload-input"
+                        class="hidden"
+                        accept="image/png, image/jpeg, image/webp"
+                    />
 
-    <script>require('./renderer.js');</script>
-</body>
+                    <div class="profile-editable-group title-group">
+                        <input
+                            type="text"
+                            id="profile-nickname-input"
+                            class="profile-input title-input"
+                            value="Nickname"
+                            readonly
+                        />
+                        <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                    </div>
+                    <p class="profile-status">Online</p>
+
+                    <div class="profile-info-section">
+                        <div class="info-group">
+                            <i class="ph ph-info"></i>
+                            <div class="info-text w-100">
+                                <span class="info-label">Bio</span>
+                                <div class="profile-editable-group">
+                                    <input
+                                        type="text"
+                                        id="profile-bio-input"
+                                        class="profile-input"
+                                        placeholder="Tell a little about yourself"
+                                        value="Fullstack Developer ✨"
+                                        readonly
+                                    />
+                                    <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <i class="ph ph-at"></i>
+                            <div class="info-text w-100">
+                                <span class="info-label">Username (Unique)</span>
+                                <div class="profile-editable-group">
+                                    <input
+                                        type="text"
+                                        id="profile-username-input"
+                                        class="profile-input"
+                                        value="username"
+                                        readonly
+                                    />
+                                    <i class="ph ph-pencil-simple edit-icon-btn"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            require('./renderer.js');
+        </script>
+    </body>
+</html>
