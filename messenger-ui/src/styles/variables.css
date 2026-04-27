@@ -5,6 +5,8 @@
     --bg-input: #2e3037;
     --accent: #9048e8;
     --accent-hover: #a666f2;
+    --text-read: #d2bdec;
+    --text-unread: #a67bdb;
     --text-main: #f0f0f0;
     --text-muted: #8e9099;
     --border-color: #2e3037;
@@ -13,9 +15,10 @@
     --success: #3ba55d;
 }
 
-body, html {
-    margin: 0; 
-    padding: 0; 
+body,
+html {
+    margin: 0;
+    padding: 0;
     height: 100%;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text-main);
@@ -23,15 +26,25 @@ body, html {
     overflow: hidden;
 }
 
-.screen { 
-    height: 100vh; 
-    width: 100vw; 
-    display: flex; 
+.screen {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
 }
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg-input); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-input);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}

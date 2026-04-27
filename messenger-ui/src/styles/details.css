@@ -22,7 +22,10 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    transition: width 0.25s ease, min-width 0.25s ease, opacity 0.25s ease;
+    transition:
+        width 0.25s ease,
+        min-width 0.25s ease,
+        opacity 0.25s ease;
 }
 
 .details-panel.hidden {

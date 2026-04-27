@@ -1,33 +1,39 @@
 .icon-btn {
-    background: transparent; 
-    border: none; 
+    background: transparent;
+    border: none;
     color: var(--text-muted);
-    font-size: 20px; 
-    padding: 6px; 
-    border-radius: 50%; 
+    font-size: 20px;
+    padding: 6px;
+    border-radius: 50%;
     display: flex;
-    justify-content: center; 
-    align-items: center; 
-    transition: color 0.2s, transform 0.15s, background 0.2s;
+    justify-content: center;
+    align-items: center;
+    transition:
+        color 0.2s,
+        transform 0.15s,
+        background 0.2s;
     cursor: pointer;
     flex-shrink: 0;
     width: 36px;
     height: 36px;
 }
 
-.icon-btn:hover { 
+.icon-btn:hover {
     color: var(--text-main);
     background: rgba(255, 255, 255, 0.06);
-    transform: scale(1.1); 
+    transform: scale(1.1);
 }
 
-.icon-btn:active { transform: scale(0.95); }
+.icon-btn:active {
+    transform: scale(0.95);
+}
 
-
-.icon-btn.send { color: var(--text-muted); }
-.icon-btn.send:hover { 
-    color: var(--accent); 
-    background: transparent; 
+.icon-btn.send {
+    color: var(--text-muted);
+}
+.icon-btn.send:hover {
+    color: var(--accent);
+    background: transparent;
 }
 
 /* --- Context menu --- */
@@ -38,7 +44,7 @@
     background: #18191c;
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     padding: 8px;
     display: flex;
     flex-direction: column;
@@ -63,7 +69,9 @@
     color: white;
 }
 
-.ctx-item.delete { color: var(--text-main); }
+.ctx-item.delete {
+    color: var(--text-main);
+}
 
 .ctx-item.delete:hover {
     background: var(--danger);
@@ -72,8 +80,8 @@
 
 /* --- Badges / marks --- */
 .edited-mark {
-    font-size: 10px; 
-    color: var(--text-muted);
+    font-size: 10px;
+    color: var(--text-read);
     font-style: italic;
 }
 
@@ -116,7 +124,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85); 
+    background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(5px);
     cursor: zoom-out;
 }
@@ -151,8 +159,10 @@
 /* === Profile Modal === */
 #profile-modal {
     position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     z-index: 9000;
     display: flex;
     justify-content: center;
@@ -172,8 +182,14 @@
 }
 
 @keyframes popIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .profile-header {
@@ -213,10 +229,20 @@
     object-fit: cover;
 }
 
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
 .profile-avatar-overlay {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
@@ -276,7 +302,9 @@
     color: var(--text-main);
 }
 
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
 
 .text-link-btn {
     background: transparent;
