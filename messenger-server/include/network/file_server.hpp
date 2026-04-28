@@ -8,25 +8,29 @@
 
 using json = nlohmann::json;
 
-class FileServer {
+class FileServer
+{
 public:
-    static void start(int port = 8081) {
+    static void start(int port = 8081)
+    {
         httplib::Server svr;
 
-        if (!std::filesystem::exists("./uploads")) {
+        if (!std::filesystem::exists("./uploads"))
+        {
             std::filesystem::create_directory("./uploads");
         }
 
         svr.set_mount_point("/files", "./uploads");
 
-        svr.Options("/uploads", [](const httplib::Request &req, httplib::Response &res) {
+        svr.Options("/uploads", [](const httplib::Request &req, httplib::Response &res)
+                    {
             res.set_header("Access-Control-Allow-Origin", "*");
             res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
             res.set_header("Access-Control-Allow-Headers", "filename"); 
-            res.status = 200;
-        });
+            res.status = 200; });
 
-        svr.Post("/upload", [port](const httplib::Request &req, httplib::Response &res) {
+        svr.Post("/upload", [port](const httplib::Request &req, httplib::Response &res)
+                 {
            res.set_header("Access-Control-Allow-Origin", "*");
 
             if (req.body.empty()) {
@@ -59,8 +63,7 @@ public:
                 {"url", file_url},
                 {"filename", original_filename}
             };
-            res.set_content(response.dump(), "application/json");
-        });
+            res.set_content(response.dump(), "application/json"); });
 
         std::cout << "[FileServer] Listening on http://0.0.0.0:" << port << std::endl;
         svr.listen("0.0.0.0", port);

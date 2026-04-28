@@ -8,18 +8,21 @@ int main()
 {
     DatabaseManager db("messenger.db");
 
-    if (db.open()){
+    if (db.open())
+    {
         std::cout << "Database opened successfully!" << std::endl;
-        if (db.init()) {
+        if (db.init())
+        {
             std::cout << "Tables initialized." << std::endl;
         }
-    } else {
+    }
+    else
+    {
         return (-1);
     }
 
-    std::thread file_thread([]() {
-        FileServer::start(8081);
-    });
+    std::thread file_thread([]()
+                            { FileServer::start(8081); });
     file_thread.detach();
 
     Server myServer(8080, db);
