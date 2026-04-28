@@ -6,13 +6,14 @@
 
 class DatabaseManager;
 
-class AuthHandler {
+class AuthHandler
+{
 public:
-    AuthHandler(IDatabaseService& db, SOCKET client_socket);
+    AuthHandler(IDatabaseService &db, SOCKET client_socket);
     std::string authenticate();
 
 private:
-    IDatabaseService& _db; 
+    IDatabaseService &_db;
     SOCKET _socket;
 
     void send_json(const nlohmann::json &j);
