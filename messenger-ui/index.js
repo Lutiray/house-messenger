@@ -21,8 +21,8 @@ function startCppClient() {
         cppClient = spawn(exePath, [], { cwd: exeDir });
 
         cppClient.stdout.on('data', (data) => {
-            const str = data.toString().trim();
-            console.log('C++ Output:', str);
+            const str = data.toString();
+            console.log('C++ Output:', str.trim());
             if (mainWindow) {
                 mainWindow.webContents.send('from-cpp', str);
             }
