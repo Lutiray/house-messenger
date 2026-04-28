@@ -379,3 +379,134 @@
 .edit-icon-btn:hover {
     color: var(--text-main);
 }
+
+/* ---Reply--- */
+.reply-block {
+    display: flex;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 0;
+    background: rgba(0, 0, 0, 0.31);
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 1;
+}
+
+.actual-text {
+    text-align: left;
+    width: 100%;
+    margin-top: 2px;
+}
+ 
+.message.own .reply-block {
+    background: rgba(255, 255, 255, 0.12);
+}
+ 
+.reply-block:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+ 
+.message.own .reply-block:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+ 
+.reply-line {
+    width: 3px;
+    min-height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+ 
+.message.own .reply-line {
+    background: rgba(255, 255, 255, 0.7);
+}
+ 
+.reply-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+ 
+.message.own {
+    color: rgba(255, 255, 255, 0.85);
+}
+ 
+.reply-text-preview {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+ 
+.message.own .reply-text-preview {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+#reply-indicator {
+    margin: 0 16px 6px 16px;
+    padding: 8px 12px;
+    background: var(--bg-input);
+    border-radius: 0 8px 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 3px solid var(--accent);
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+ 
+.reply-indicator-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+}
+ 
+.reply-indicator-info i {
+    color: var(--accent);
+    font-size: 18px;
+    flex-shrink: 0;
+    min-width: 0;
+}
+ 
+.reply-indicator-text {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+ 
+.reply-indicator-title {
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+ 
+#reply-preview-text {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    min-width: 0;
+}
+
+.msg-highlight {
+    background-color: rgba(144, 72, 232, 0.18) !important;
+    border-radius: 8px;
+    transition: background-color 2s ease-out;
+}
