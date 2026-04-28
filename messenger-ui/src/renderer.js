@@ -4,12 +4,14 @@ const AuthManager = require('./auth_manager.js');
 const ProfileManager = require('./profile_manager.js');
 
 let myNickname = '';
+let ipcBuffer = '';
 let lastTypingTime = 0;
 let activeChat = null;
 let editingMsgId = null;
 let oldestMsgId = 0;
 let isLoadingHistory = false;
 let hasMoreHistory = true;
+let replyingToId = null;
 const onlineUsers = new Set();
 
 const messageForm = document.getElementById('message-form');
@@ -31,8 +33,12 @@ const toggleDetailsBtn = document.getElementById('toggle-details-btn');
 const closeDetailsBtn = document.getElementById('close-details-btn');
 const chatDetailsPanel = document.getElementById('chat-details-panel');
 const attachBtn = document.getElementById('attach-btn');
+const myAvatarPlaceholder = document.getElementById('my-avatar-placeholder');
 const fileUploadInput = document.getElementById('file-upload-input');
 const headerAvatar = document.getElementById('current-chat-avatar');
+const replyIndicator = document.getElementById('reply-indicator');
+const replyPreviewText = document.getElementById('reply-preview-text');
+const cancelReplyBtn = document.getElementById('cancel-reply-btn');
 
 // --- Initialization of UI-modules ---
 UIManager.initNavMenu();
@@ -45,11 +51,28 @@ UIManager.initContextMenu(
     ipcRenderer,
     (msgId, oldText) => {
         editingMsgId = msgId;
+        replyingToId = null;
+        if (replyIndicator)
+            replyIndicator.classList.add('hidden');
+
         messageInput.value = oldText;
         editPreviewText.textContent = oldText;
         editIndicator.classList.remove('hidden');
         messageInput.focus();
     },
+
+    (msgId, oldText) => {
+        replyingToId = msgId;
+        editingMsgId = null;
+        if (editIndicator)
+            editIndicator.classList.add('hidden');
+        const preview = oldText.length > 60 ? oldText.slice(0, 60) + '...' : oldText;
+        if (replyPreviewText)
+            replyPreviewText.textContent = preview;
+        if (replyIndicator) 
+            replyIndicator.classList.remove('hidden');
+        messageInput.focus();
+    }
 );
 
 cancelEditBtn.onclick = () => {
@@ -57,6 +80,13 @@ cancelEditBtn.onclick = () => {
     messageInput.value = '';
     editIndicator.classList.add('hidden');
 };
+
+if (cancelReplyBtn) {
+    cancelReplyBtn.onclick = () => {
+        replyingToId = null;
+        replyIndicator.classList.add('hidden');
+    };
+}
 
 // --- Observers ---
 const readObserver = new IntersectionObserver(
@@ -118,13 +148,20 @@ function requestDialogsDebounced(delay = 500) {
 function openChat(chatName) {
     activeChat = chatName;
 
-    if (messengerContainer) {
+    if (messengerContainer)
         messengerContainer.classList.add('private-chat');
-    }
-    if (headerAvatar) headerAvatar.classList.remove('hidden');
+    if (headerAvatar) 
+        headerAvatar.classList.remove('hidden');
+
+    replyingToId = null;
+    editingMsgId = null;
+    if (replyIndicator) 
+        replyIndicator.classList.add('hidden');
+    if (editIndicator) 
+        editIndicator.classList.add('hidden');
 
     if (chatName === myNickname) {
-        currentChatNameUI.innerHTML = 'Saved Messages';
+        currentChatNameUI.textContent = 'Saved Messages';
         if (headerAvatar) {
             headerAvatar.src = 'https://ui-avatars.com/api/?name=SM&background=5b7cff&color=fff';
         }
@@ -166,7 +203,7 @@ function openChat(chatName) {
         historyObserver.unobserve(topSentinel);
     }
 
-    messengerContainer.innerHTML = '';
+    messengerContainer.textContent = '';
     ipcRenderer.send('to-cpp', JSON.stringify({ type: 'get_history', user: chatName }));
     messageInput.focus();
 }
@@ -181,7 +218,7 @@ const PacketHandlers = {
             if (myAvatarPlaceholder) {
                 const img = document.createElement('img');
                 img.src = UIManager.getAvatarUrl(myNickname, 32);
-                img.className = 'my-avatar-img';
+                img.className = 'avatar-img';
                 img.alt = myNickname;
                 myAvatarPlaceholder.innerHTML = '';
                 myAvatarPlaceholder.appendChild(img);
@@ -201,13 +238,13 @@ const PacketHandlers = {
 
             UIManager.addMessage(
                 messengerContainer,
-                data.from,
-                data.text,
-                data.id,
-                data.timestamp,
+                data.from, data.text,
+                data.id, data.timestamp,
                 data.from === myNickname,
                 data.is_read === 1,
-                readObserver,
+                readObserver, null,
+                data.reply_to_id,
+                data.reply_text
             );
 
             if (data.from === myNickname || isNearBottom) {
@@ -254,13 +291,12 @@ const PacketHandlers = {
 
                 UIManager.addMessage(
                     messengerContainer,
-                    m.from,
-                    m.text,
-                    m.id,
-                    m.time,
+                    m.from, m.text,
+                    m.id, m.time,
                     m.from === myNickname,
                     m.is_read === 1,
-                    readObserver,
+                    readObserver, null,
+                    m.reply_to_id, m.reply_text
                 );
 
                 if (oldestMsgId === 0 || m.id < oldestMsgId) {
@@ -277,23 +313,19 @@ const PacketHandlers = {
             });
         } else {
             const oldScrollHeight = messengerContainer.scrollHeight;
-
             for (let i = data.data.length - 1; i >= 0; i--) {
                 const m = data.data[i];
                 UIManager.addMessage(
                     messengerContainer,
-                    m.from,
-                    m.text,
-                    m.id,
-                    m.time,
+                    m.from, m.text,
+                    m.id, m.time,
                     m.from === myNickname,
                     m.is_read === 1,
-                    readObserver,
-                    topSentinel,
+                    readObserver, topSentinel,
+                    m.reply_to_id, m.reply_text
                 );
-                if (m.id < oldestMsgId) {
+                if (m.id < oldestMsgId)
                     oldestMsgId = m.id;
-                }
             }
             if (oldScrollHeight > 0) {
                 messengerContainer.scrollTop = messengerContainer.scrollHeight - oldScrollHeight;
@@ -349,7 +381,7 @@ const PacketHandlers = {
     },
 
     search_results: (data) => {
-        userListContainer.innerHTML = '';
+        userListContainer.textContent = '';
         if (!data.users || data.users.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'empty-dialogs-msg';
@@ -412,19 +444,28 @@ const PacketHandlers = {
 };
 
 // --- IPC ---
-ipcRenderer.on('from-cpp', (event, rawJson) => {
-    try {
-        const packets = rawJson.split('\n').filter((p) => p.trim() !== '');
-        packets.forEach((packet) => {
-            const data = JSON.parse(packet);
+ipcRenderer.on('from-cpp', (event, rawData) => {
+    ipcBuffer += rawData.toString();
+    
+    let newlineIdx;
+
+    while ((newlineIdx = ipcBuffer.indexOf('\n')) !== -1) {
+        const packetStr = ipcBuffer.slice(0, newlineIdx).trim();
+        
+        ipcBuffer = ipcBuffer.slice(newlineIdx + 1);
+        
+        if (!packetStr) continue;
+        
+        try {
+            const data = JSON.parse(packetStr);
             if (PacketHandlers[data.type]) {
                 PacketHandlers[data.type](data);
             } else {
-                console.warn('[Client] Unknown packet type from server:', data.type);
+                console.warn("[Client] Unknown packet type from server:", data.type);
             }
-        });
-    } catch (e) {
-        console.log('Non-JSON output from C++: ', rawJson);
+        } catch (e) {
+            console.error("JSON Parse Error. Packet was:", packetStr, "Error:", e.message);
+        }
     }
 });
 
@@ -455,16 +496,17 @@ messageForm.onsubmit = (e) => {
             }),
         );
         editingMsgId = null;
-        editIndicator.classList.add('hidden');
+        if (editIndicator) editIndicator.classList.add('hidden');
     } else {
-        ipcRenderer.send(
-            'to-cpp',
-            JSON.stringify({
-                type: 'send_msg',
-                to: activeChat,
-                content: text,
-            }),
-        );
+        ipcRenderer.send('to-cpp', JSON.stringify({
+            type: 'send_msg',
+            to: activeChat,
+            content: text,
+            reply_to_id: replyingToId ? Number(replyingToId) : 0
+        }));
+
+        replyingToId = null;
+        if (replyIndicator) replyIndicator.classList.add('hidden');
     }
     messageInput.value = '';
 };
@@ -501,21 +543,19 @@ if (attachBtn && fileUploadInput) {
         try {
             const response = await fetch(`http://localhost:8081/upload`, {
                 method: 'POST',
-                headers: {
-                    filename: encodeURIComponent(file.name),
-                },
+                headers: { filename: encodeURIComponent(file.name), },
                 body: file,
             });
             const data = await response.json();
             if (data.status === 'success') {
-                ipcRenderer.send(
-                    'to-cpp',
-                    JSON.stringify({
+                ipcRenderer.send('to-cpp', JSON.stringify({
                         type: 'send_msg',
                         to: activeChat,
                         content: data.url,
-                    }),
-                );
+                        reply_to_id: replyingToId ? Number(replyingToId) : 0
+                }));
+                replyingToId = null;
+                if (replyIndicator) replyIndicator.classList.add('hidden');
             } else {
                 console.error('Upload error from server: ', data.error);
             }
