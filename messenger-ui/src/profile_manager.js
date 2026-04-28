@@ -9,7 +9,6 @@ class ProfileManager {
         this.overlay = document.getElementById('profile-overlay');
         this.closeBtn = document.getElementById('close-profile-btn');
         this.avatarImg = document.getElementById('profile-avatar-img');
-        this.this.uploadInput = document.getElementById('avatar-upload-input');
         this.nicknameInput = document.getElementById('profile-nickname-input');
         this.usernameInput = document.getElementById('profile-username-input');
         this.bioInput = document.getElementById('profile-bio-input');
@@ -22,9 +21,9 @@ class ProfileManager {
 
     static setupListeners() {
         const profileBtn = document.querySelector('.my-avatar-placeholder');
-        if (profileBtn) profileBtn.onclick = () => this.openProfile;
-        if (this.closeBtn) this.closeBtn.onclick = () => this.closeProfile;
-        if (this.overlay) this.overlay.onclick = () => this.closeProfile;
+        if (profileBtn) profileBtn.onclick = () => this.openProfile();
+        if (this.closeBtn) this.closeBtn.onclick = () => this.closeProfile();
+        if (this.overlay) this.overlay.onclick = () => this.closeProfile();
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !this.modal.classList.contains('hidden')) {
@@ -142,7 +141,8 @@ class ProfileManager {
             console.error('Avatar upload failed: ', error);
             alert('Server connection error. Is the file server running on port 8081?');
         } finally {
-            if (this.addPhotoTextBtn) this.addPhotoTextBtn.textContent = 'Add photo';
+            if (this.addPhotoTextBtn) 
+                this.addPhotoTextBtn.textContent = 'Add photo';
             this.avatarImg.style.opacity = '1';
             this.uploadInput.value = '';
         }
