@@ -23,16 +23,16 @@ class AuthManager {
         this.regEmailInp = document.getElementById('reg-email');
         this.regPhoneInp = document.getElementById('reg-phone');
 
-        regBtn.onclick = () => this.showReg();
-        goToLoginBtn.onclick = (e) => {
+        this.regBtn.onclick = () => this.showReg();
+        this.goToLoginBtn.onclick = (e) => {
             e.preventDefault();
             this.showLogin();
         };
 
-        loginBtn.onclick = () => this.handleLogin();
-        regSubmitBtn.onclick = () => this.handleReg();
+        this.loginBtn.onclick = () => this.handleLogin();
+        this.regSubmitBtn.onclick = () => this.handleReg();
 
-        exitBtn.onclick = () => {
+        this.exitBtn.onclick = () => {
             ipcRenderer.send('to-cpp', '/exit');
             ipcRenderer.send('restart-app');
         };
