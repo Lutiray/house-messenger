@@ -1,4 +1,14 @@
 class UIManager {
+    static initNavMenu() {
+        const navItems = document.querySelectorAll('.app-nav .nav-item:not(#exit-btn)');
+        navItems.forEach((item) => {
+            item.onclick = () => {
+                navItems.forEach((n) => n.classList.remove('active'));
+                item.classList.add('active');
+            };
+        });
+    }
+
     static getAvatarUrl(name, size = 40) {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=${size}`;
     }
@@ -43,7 +53,7 @@ class UIManager {
 
         const safeText = text ? String(text) : '';
         const isFileUrl = safeText.startsWith(
-            ('http://localhost:' && text.includes('/files/')) || safeText.includes('/upload'),
+            ('http://localhost:' && safeText.includes('/files/')) || safeText.includes('/upload'),
         );
 
         if (!isFileUrl) {
@@ -54,8 +64,8 @@ class UIManager {
             return body;
         }
 
-        const ext = text.split('.').pop().toLowerCase();
-        const parts = text.split('/');
+        const ext = safeText.split('.').pop().toLowerCase();
+        const parts = safeText.split('/');
         const filenameWithTime = parts[parts.length - 1];
         const originalName = decodeURIComponent(filenameWithTime.substring(filenameWithTime.indexOf('_') + 1));
 
@@ -69,16 +79,16 @@ class UIManager {
             const wrapper = document.createElement('div');
             wrapper.className = 'msg-image';
             const img = document.createElement('img');
-            img.src = text;
+            img.src = safeText;
             img.alt = originalName;
-            img.onclick = () => UIManager.openLightbox(text);
+            img.onclick = () => UIManager.openLightbox(safeText);
             wrapper.appendChild(img);
             body.appendChild(wrapper);
         } else if (vidExts.includes(ext)) {
             const wrapper = document.createElement('div');
             wrapper.className = 'msg-image';
             const video = document.createElement('video');
-            video.src = text;
+            video.src = safeText;
             video.muted = true;
             video.autoplay = true;
             video.loop = true;
@@ -94,7 +104,7 @@ class UIManager {
         } else {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
-            fileItem.onclick = () => window.open(text, '_blank');
+            fileItem.onclick = () => window.open(safeText, '_blank');
 
             const iconDiv = document.createElement('div');
             iconDiv.className = 'file-icon';
@@ -116,7 +126,7 @@ class UIManager {
     static openLightbox(imageUrl) {
         const lightbox = document.getElementById('image-lightbox');
         const lightboxImg = document.getElementById('lightbox-img');
-        const overlay = document.querySelector('.lightbox-overlay');
+        const overlay = document.querySelector('#image-lightbox .lightbox-overlay');
         const closeBtn = document.getElementById('lightbox-close');
 
         lightboxImg.src = imageUrl;
@@ -125,17 +135,16 @@ class UIManager {
         const closeLightbox = () => {
             lightbox.classList.add('hidden');
             lightboxImg.src = '';
+            document.removeEventListener('keydown', onEsc);
+        };
+
+        const onEsc = (e) => {
+            if (e.key === 'Escape') closeLightbox();
         };
 
         closeBtn.onclick = closeLightbox;
         overlay.onclick = closeLightbox;
-
-        document.addEventListener('keydown', function enEsc(e) {
-            if (e.key === 'Escape') {
-                closeLightbox();
-                document.removeEventListener('keydown', onEsc);
-            }
-        });
+        document.addEventListener('keydown', onEsc);
     }
 
     static _insertAfterAnchor(container, element, anchorElement) {
@@ -144,6 +153,38 @@ class UIManager {
         } else {
             container.appendChild(element);
         }
+    }
+
+    static _buildReplyBlock(container, replyToId, replyText) {
+        const replyBlock = document.createElement('div');
+        replyBlock.className = 'reply-block';
+
+        const replyLine = document.createElement('div');
+        replyLine.className = 'reply-line';
+
+        const replyContent = document.createElement('div');
+        replyContent.className = 'reply-content';
+
+        const replyTextPreview = document.createElement('span');
+        replyTextPreview.className = 'reply-text-preview';
+
+        const preview = !replyText || replyText.trim() === ''
+        ? '[Message]' : replyText.length > 80 ? replyText.slice(0, 80) + '...' : replyText;
+        replyTextPreview.textContent = preview;
+
+        replyContent.appendChild(replyTextPreview);
+        replyBlock.appendChild(replyLine);
+        replyBlock.appendChild(replyContent);
+
+        replyBlock.onclick = () => {
+            const originalMsg = container.querySelector(`.message[data-id="${replyToId}"]`);
+            if (originalMsg) {
+                originalMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                originalMsg.classList.add('msg-highlight');
+                setTimeout(() => originalMsg.classList.remove('msg-highlight'), 2000);
+            }
+        };
+        return replyBlock;
     }
 
     static addMessage(
@@ -156,6 +197,8 @@ class UIManager {
         isRead = false,
         observer = null,
         insertAfterAnchor = null,
+        replyToId = 0,
+        replyText = '',
     ) {
         if (!container) return;
 
@@ -167,7 +210,7 @@ class UIManager {
             msgDiv.classList.add('system-msg');
             const body = document.createElement('div');
             body.className = 'msg-text';
-            body.innerText = text;
+            body.innerText = safeText;
             msgDiv.appendChild(body);
             UIManager._insertAfterAnchor(container, msgDiv, insertAfterAnchor);
             return msgDiv;
@@ -206,7 +249,6 @@ class UIManager {
         if (isOwn) {
             const checkIcon = document.createElement('span');
             checkIcon.className = 'read-receipt';
-
             const icon = document.createElement('i');
             icon.className = isRead ? 'ph ph-checks' : 'ph ph-check';
             icon.dataset.read = isRead ? '1' : '0';
@@ -215,6 +257,11 @@ class UIManager {
         }
 
         const body = UIManager.buildMessageBody(safeText);
+
+        if (replyToId && replyToId > 0) {
+            const replyBlock = UIManager._buildReplyBlock(container, replyToId, replyText);
+            body.insertBefore(replyBlock, body.firstChild);
+        }
 
         body.appendChild(timeSpan);
         contentDiv.appendChild(header);
@@ -343,17 +390,7 @@ class UIManager {
         return li;
     }
 
-    static initNavMenu() {
-        const navItems = document.querySelectorAll('.app-nav .nav-item:not(#exit-btn)');
-        navItems.forEach((item) => {
-            item.onclick = () => {
-                navItems.forEach((n) => n.classList.remove('active'));
-                item.classList.add('active');
-            };
-        });
-    }
-
-    static initContextMenu(messagesContainer, myNicknameFunc, ipcRenderer, onEditRequest) {
+    static initContextMenu(messagesContainer, myNicknameFunc, ipcRenderer, onEditRequest, onReplyRequest) {
         const contextMenu = document.getElementById('context-menu');
         if (!contextMenu || !messagesContainer) return;
 
@@ -361,26 +398,32 @@ class UIManager {
         let selectedMsgElement = null;
 
         messagesContainer.addEventListener('contextmenu', (e) => {
-            const msgDiv = e.target.closest('.message');
-            if (!msgDiv || !msgDiv.classList.contains('own')) return;
+            const msgDiv = e.target.closest('.message:not(.system-msg)');
+            if (!msgDiv) return;
 
             e.preventDefault();
             selectedMsgId = parseInt(msgDiv.dataset.id);
             selectedMsgElement = msgDiv;
 
+            const isOwn = msgDiv.classList.contains('own');
             const editItem = document.getElementById('ctx-edit');
-            let canEdit = true;
+            const deleteItem = document.getElementById('ctx-delete');
+            const replyItem = document.getElementById('ctx-reply');
 
-            if (msgDiv.dataset.time && msgDiv.dataset.time !== 'now') {
+            let canEdit = isOwn;
+
+            if (canEdit && msgDiv.dataset.time && msgDiv.dataset.time !== 'now') {
                 const isoString = msgDiv.dataset.time.replace(' ', 'T') + 'Z';
                 const msgDate = new Date(isoString).getTime();
                 const diffHours = (Date.now() - msgDate) / (1000 * 60 * 60);
                 if (diffHours > 1) canEdit = false;
             }
-            editItem.style.display = canEdit ? '' : 'none';
+            if (editItem) editItem.style.display = canEdit ? 'flex' : 'none';
+            if (deleteItem) deleteItem.style.display = isOwn ? 'flex' : 'none';
+            if (replyItem) replyItem.style.display = 'flex';
 
             const menuW = 185,
-                menuH = 80;
+                menuH = 120;
             const left = Math.min(e.pageX, window.innerWidth - menuW - 8);
             const top = Math.min(e.pageY, window.innerHeight - menuH - 8);
 
@@ -396,6 +439,7 @@ class UIManager {
         document.getElementById('ctx-delete').onclick = () => {
             if (selectedMsgId) {
                 ipcRenderer.send('to-cpp', JSON.stringify({ type: 'delete_msg', id: selectedMsgId }));
+                contextMenu.classList.add('hidden');
             }
         };
 
@@ -408,6 +452,19 @@ class UIManager {
                 if (onEditRequest) onEditRequest(selectedMsgId, oldText);
             }
         };
+
+        const ctxReply = document.getElementById('ctx-reply');
+        if (ctxReply) {
+            ctxReply.onclick = () => {
+                if (selectedMsgId && selectedMsgElement) {
+                    const textSpan = selectedMsgElement.querySelector('.actual-text');
+                    const oldText = textSpan ? textSpan.textContent.trim() : '[Attachment]';
+                    contextMenu.classList.add('hidden');
+
+                    if (onReplyRequest) onReplyRequest(selectedMsgId, oldText);
+                }
+            };
+        }
     }
 
     static setMessageEdited(msgElement, newText) {
@@ -420,11 +477,6 @@ class UIManager {
             const textEl = msgElement.querySelector('.msg-text');
             if (textEl) textEl.textContent = newText;
         }
-
-        const oldMark = textSpan.querySelector('.edited-mark');
-        if (oldMark) oldMark.remove();
-
-        textSpan.textContent = newText;
 
         const timeSpan = msgElement.querySelector('.msg-time');
         if (timeSpan && !msgElement.querySelector('.edited-mark')) {
