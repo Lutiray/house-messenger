@@ -6,21 +6,22 @@
 #include <functional>
 #include "interfaces/interfaces.hpp"
 
-class CommandHandler {
+class CommandHandler
+{
 public:
-    CommandHandler(IMessageSender& sender, 
-                   IUserRegistry& registry, 
-                   IDatabaseService& db, 
-                   SOCKET sender_sock, 
-                   const std::string& sender_name);
+    CommandHandler(IMessageSender &sender,
+                   IUserRegistry &registry,
+                   IDatabaseService &db,
+                   SOCKET sender_sock,
+                   const std::string &sender_name);
 
-    void handle(const std::string& text);
+    void handle(const std::string &text);
 
 private:
-    using CommandAction = std::function<void(const std::string&)>;
+    using CommandAction = std::function<void(const std::string &)>;
 
-    void cmd_whisper(const std::string& target_nick, const std::string& message);
-    void reply(const std::string& msg);
+    void cmd_whisper(const std::string &target_nick, const std::string &message, int reply_to_id = 0);
+    void reply(const std::string &msg);
     void handle_ping();
     void handle_search(const json &j);
     void handle_typing(const json &j);
@@ -30,14 +31,14 @@ private:
     void handle_send_message(const json &j);
     void handle_get_history(const json &j);
     void handle_get_dialogs();
-    void handle_get_profile(const nlohmann::json& j);
-    void handle_update_profile(const nlohmann::json& j);
+    void handle_get_profile(const nlohmann::json &j);
+    void handle_update_profile(const nlohmann::json &j);
 
     json build_chat_message(const std::string &text, const std::string &target, bool is_private = false, int msg_id = -1);
 
-    IMessageSender& _sender;
-    IUserRegistry& _registry;
-    IDatabaseService& _db;
+    IMessageSender &_sender;
+    IUserRegistry &_registry;
+    IDatabaseService &_db;
 
     SOCKET _sender_sock;
     std::string _sender_name;
