@@ -48,7 +48,8 @@ public:
     virtual int saveMessage(const std::string &sender_nick,
                             const std::string &content,
                             const std::string &receiver_nick,
-                            int reply_to_id = 0) = 0;
+                            int reply_to_id = 0, 
+                            const std::string &f_from = "", const std::string &f_text = "") = 0;
 
     virtual bool checkAuth(const std::string &username, const std::string &password) = 0;
     virtual bool registerUser(const std::string &username, const std::string &password,
