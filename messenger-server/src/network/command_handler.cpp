@@ -173,6 +173,8 @@ void CommandHandler::handle_send_message(const json &j)
     std::string target = j.value("to", "");
     std::string content = j.value("content", "");
     int reply_to_id = j.value("reply_to_id", 0);
+    std::string f_from = j.value("forward_from", "");
+    std::string f_text = j.value("forward_text", "");
 
     if (target.empty() || target == "general")
     {
@@ -182,7 +184,7 @@ void CommandHandler::handle_send_message(const json &j)
     if (content.empty())
         return;
 
-    cmd_whisper(target, content, reply_to_id);
+    cmd_whisper(target, content, reply_to_id, f_from, f_text);
 }
 
 void CommandHandler::handle_get_history(const json &j)
@@ -258,7 +260,8 @@ void CommandHandler::handle_update_profile(const json &j)
     }
 }
 
-void CommandHandler::cmd_whisper(const std::string &target_nick, const std::string &message, int reply_to_id)
+void CommandHandler::cmd_whisper(const std::string &target_nick, const std::string &message, int reply_to_id,
+                                 const std::string &f_from, const std::string &f_text)
 {
     if (_db.getUserId(target_nick) == -1)
     {
@@ -266,12 +269,17 @@ void CommandHandler::cmd_whisper(const std::string &target_nick, const std::stri
         return;
     }
 
-    int new_id = _db.saveMessage(_sender_name, message, target_nick, reply_to_id);
+    int new_id = _db.saveMessage(_sender_name, message, target_nick, reply_to_id, f_from, f_text);
     json msg = build_chat_message(message, target_nick, true, new_id);
 
     if (reply_to_id > 0)
         msg["reply_to_id"] = reply_to_id;
-    
+
+    if (f_from != "" && f_text != "") {
+        msg["forward_from"] = f_from;
+        msg["forward_text"] = f_text;
+    }
+
     if (target_nick == _sender_name)
     {
         msg["is_saved"] = true;
