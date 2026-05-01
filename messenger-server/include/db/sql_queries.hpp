@@ -42,7 +42,9 @@ namespace SQL
         "is_edited INTEGER DEFAULT 0, "
         "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, "
         "FOREIGN KEY (channel_id) REFERENCES channels(id), "
-        "FOREIGN KEY (sender_id) REFERENCES users(id)"
+        "FOREIGN KEY (sender_id) REFERENCES users(id), "
+        "reply_to_id INTEGER DEFAULT 0, "
+        ""
         ");";
 
     constexpr const char *CREATE_INDEXES =
@@ -71,9 +73,9 @@ namespace SQL
         "UPDATE users SET display_name = COALESCE(?, display_name), "
         "bio = COALESCE(?, bio), avatar_url = COALESCE(?, avatar_url) "
         "WHERE username = ?;";
-    // --- Messengers ---
+    // --- Messages ---
     constexpr const char *INSERT_MESSAGE =
-        "INSERT INTO messages (channel_id, sender_id, content, reply_to_id) VALUES (?, ?, ?, ?);";
+        "INSERT INTO messages (channel_id, sender_id, content, reply_to_id, forward_from, forward_text) VALUES (?, ?, ?, ?, ?, ?);";
 
     constexpr const char *DELETE_MESSAGE =
         "DELETE FROM messages WHERE id = ? AND sender_id = ?;";
@@ -90,7 +92,8 @@ namespace SQL
         "WHERE channel_id = ? AND user_id = ? "
         ") THEN 1 ELSE 0 END AS is_read, "
         "m.reply_to_id, "
-        "(SELECT content FROM messages WHERE id = m.reply_to_id) AS reply_text "
+        "(SELECT content FROM messages WHERE id = m.reply_to_id) AS reply_text, "
+        "m.forward_from, m.forward_text "
         "FROM messages m "
         "JOIN users u ON m.sender_id = u.id "
         "WHERE m.channel_id = ? AND (? = 0 OR m.id < ?) "
