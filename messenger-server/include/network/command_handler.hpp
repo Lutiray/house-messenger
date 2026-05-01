@@ -20,7 +20,8 @@ public:
 private:
     using CommandAction = std::function<void(const std::string &)>;
 
-    void cmd_whisper(const std::string &target_nick, const std::string &message, int reply_to_id = 0);
+    void cmd_whisper(const std::string &target_nick, const std::string &message, int reply_to_id = 0,
+                     const std::string &f_from = "", const std::string &f_text = "");
     void reply(const std::string &msg);
     void handle_ping();
     void handle_search(const json &j);
