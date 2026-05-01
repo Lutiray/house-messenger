@@ -258,7 +258,6 @@
 .msg-time {
     font-size: 0.65rem;
     align-self: flex-end;
-    margin-top: 4px;
     color: rgba(255, 255, 255, 0.4);
     display: flex;
     align-items: center;
@@ -366,6 +365,56 @@
     font-size: 0.85rem;
     color: var(--text-main);
     word-break: break-all;
+}
+
+/* --- Attachment staging --- */
+#attachment-staging {
+    backgroung: var(--bg-input);
+    margin: 0 16px 8px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px dashed var(--accent);
+}
+
+.staging-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.file-preview-item {
+    display: flex;
+    align-item: center;
+    gap: 12px;
+}
+
+.file-info {
+    display: flex;
+    flex-direction : column;
+}
+
+.staging-filename {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.cancel-attach {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+}
+
+.image-file {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.attach-file {
+    font-size: 24px;
+    color: var(--accent);
 }
 
 /* === Input === */

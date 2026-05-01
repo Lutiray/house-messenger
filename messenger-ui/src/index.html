@@ -117,6 +117,17 @@
                     <button id="scroll-bottom-btn" class="hidden">
                         <i class="ph ph-caret-down"></i>
                     </button>
+                    <div id="attachment-staging" class="hidden">
+                        <div class="staging-content">
+                            <div class="file-preview-item">
+                                <div id="file-thumbnail"></div>
+                                <div class="file-info">
+                                    <span id="staging-filename"></span>
+                                </div>
+                                <i class="ph ph-x cancel-attach" id="cancel-attachment"></i>
+                            </div>
+                        </div>
+                    </div>
                     <div id="reply-indicator" class="hidden">
                         <div class="reply-indicator-info">
                             <i class="ph ph-arrow-u-up-left"></i>
@@ -136,6 +147,16 @@
                             </div>
                         </div>
                         <i class="ph ph-x edit-cancel" id="cancel-edit-btn"></i>
+                    </div>
+                    <div id="forward-indicator" class="hidden">
+                        <div class="forward-indicator-info">
+                            <i class="ph ph-share-fat"></i>
+                            <div class="forward-indicator-text">
+                                <span class="forward-title" id="forward-to-name">Forward Message</span>
+                                <span class="forward-preview" id="forward-preview-text"></span>
+                            </div>
+                        </div>
+                        <i class="ph ph-x forward-cancel" id="cancel-forward-btn"></i>
                     </div>
                     <form id="message-form">
                         <button type="button" class="icon-btn" id="attach-btn">
@@ -168,6 +189,7 @@
         </div>
         <div id="context-menu" class="hidden">
             <div class="ctx-item" id="ctx-reply"><i class="ph ph-arrow-u-up-left"></i> Reply</div>
+            <div class="ctx-item" id="ctx-forward"><i class="ph ph-share-fat"></i>Forward</div>
             <div class="ctx-item" id="ctx-edit"><i class="ph ph-pencil-simple"></i> Edit Message</div>
             <div class="ctx-item delete" id="ctx-delete"><i class="ph ph-trash"></i> Delete Message</div>
         </div>
@@ -175,6 +197,19 @@
             <div class="lightbox-overlay"></div>
             <img id="lightbox-img" src="" alt="Fullscreen image" />
             <button id="lightbox-close"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="forward-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="forward-header">
+                    <h3>Forward to...</h3>
+                    <i class="ph ph-x" id="close-forward-btn"></i>
+                </div>
+                <div class="search-container">
+                    <input type="text" id="forward-search-input" placeholder="Search chats...">
+                </div>
+                <ul id="forward-dialogs-list">
+                </ul>
+            </div>
         </div>
         <div id="profile-modal" class="hidden">
             <div class="lightbox-overlay" id="profile-overlay"></div>
