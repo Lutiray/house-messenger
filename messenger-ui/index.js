@@ -2,6 +2,7 @@ const fs = require('fs');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
+const { startupSnapshot } = require('v8');
 
 let mainWindow;
 let cppClient;
@@ -42,7 +43,7 @@ function startCppClient() {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 800,
+        width: 1000,
         height: 600,
         webPreferences: {
             nodeIntegration: true,
@@ -52,14 +53,31 @@ function createWindow() {
     });
 
     mainWindow.loadFile('src/index.html');
-    if (!app.isPackaged) mainWindow.webContents.openDevTools();
+    if (!app.isPackaged) 
+        mainWindow.webContents.openDevTools();
 
+    let isInitialLoad = true;
+    mainWindow.webContents.on('did-start-navigation', () => {
+        if(isInitialLoad) {
+            isInitialLoad = false;
+        } else {
+            console.log('[Electron] UI Reload detected! Restart.');
+            startCppClient();
+        }
+    });
     startCppClient();
 }
 
 ipcMain.on('to-cpp', (event, arg) => {
     if (cppClient && cppClient.stdin.writable) {
         cppClient.stdin.write(arg + '\n');
+    }
+});
+
+ipcMain.on('focus-window', () => {
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
     }
 });
 
