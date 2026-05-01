@@ -85,46 +85,23 @@ bool DatabaseManager::init()
 
     if (current_version < 4)
     {
-        Logger::info("Migrating database to version 4 (adding profile columns)...");
+        Logger::info("Migrating database to version 5 (adding forwards)...");
+        char* errMsg = nullptr;
 
-        const char *migrations_v4[] = {
-            "ALTER TABLE users ADD COLUMN display_name TEXT;",
-            "ALTER TABLE users ADD COLUMN bio TEXT;",
-            "ALTER TABLE users ADD COLUMN avatar_url TEXT;"};
-
-        char *errMsg = nullptr;
-        for (const char *sql : migrations_v4)
-        {
-            if (sqlite3_exec(_db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK)
-            {
-                Logger::info(std::string("Note during migration: ") + errMsg);
-                sqlite3_free(errMsg);
-            }
+        if (sqlite3_exec(_db, "ALTER TABLE messages ADD COLUMN forward_from TEXT DEFAULT '';", nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            Logger::error("Failed to add forward_from (maybe it already exists or DB locked): " + std::string(errMsg));
+            sqlite3_free(errMsg);
+            errMsg = nullptr;
         }
-
-        sqlite3_exec(_db, "UPDATE users SET display_name = username WHERE display_name IS NULL;", nullptr, nullptr, nullptr);
-        sqlite3_exec(_db, "UPDATE users SET bio = 'I am using Messenger 2026' WHERE bio IS NULL;", nullptr, nullptr, nullptr);
+        if (sqlite3_exec(_db, "ALTER TABLE messages ADD COLUMN forward_text TEXT DEFAULT '';", nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            Logger::error("Failed to add forward_text: " + std::string(errMsg));
+            sqlite3_free(errMsg);
+            errMsg = nullptr;
+        }
 
         sqlite3_exec(_db, "PRAGMA user_version = 4;", nullptr, nullptr, nullptr);
         current_version = 4;
         Logger::info("Successfully updated database to version 4!");
-    }
-
-    if (current_version < 5)
-    {
-        Logger::info("Migrating database to version 5 (adding replies)...");
-        const char *sql_reply = "ALTER TABLE messages ADD COLUMN reply_to_id INTEGER DEFAULT 0;";
-
-        char *errMsg = nullptr;
-        if (sqlite3_exec(_db, sql_reply, nullptr, nullptr, &errMsg) != SQLITE_OK)
-        {
-            Logger::info(std::string("Note during migration v5: ") + errMsg);
-            sqlite3_free(errMsg);
-        }
-
-        sqlite3_exec(_db, "PRAGMA user_version = 5;", nullptr, nullptr, nullptr);
-        current_version = 5;
-        Logger::info("Successfully updated database to version 5!");
     }
     return true;
 }
@@ -137,6 +114,8 @@ json DatabaseManager::parseMessageRow(sqlite3_stmt *stmt)
     const char *nameOrSender = (const char *)sqlite3_column_text(stmt, 1);
     const char *text = (const char *)sqlite3_column_text(stmt, 2);
     const char *time = (const char *)sqlite3_column_text(stmt, 3);
+    const char* f_from = (const char*)sqlite3_column_text(stmt, 8);
+    const char* f_text = (const char*)sqlite3_column_text(stmt, 9);
 
     m["from"] = nameOrSender ? nameOrSender : "Unknown";
     m["text"] = text ? text : "";
@@ -150,6 +129,11 @@ json DatabaseManager::parseMessageRow(sqlite3_stmt *stmt)
         m["reply_to_id"] = reply_to_id;
         const char* r_text = (const char*)sqlite3_column_text(stmt, 7);
         m["reply_text"] = r_text ? r_text : "Deleted message";
+    }
+
+    if (f_from && strlen(f_from) > 0) {
+        m["forward_from"] = f_from;
+        m["forward_text"] = f_text ? f_text : "";
     }
 
     return m;
@@ -227,7 +211,7 @@ int DatabaseManager::getUserId(const std::string &username)
 }
 
 int DatabaseManager::saveMessage(const std::string &sender_nick, const std::string &content,
-                                 const std::string &receiver_nick, int reply_to_id)
+                                 const std::string &receiver_nick, int reply_to_id, const std::string &f_from, const std::string &f_text)
 {
     std::lock_guard<std::mutex> lock(_db_mutex);
 
@@ -246,6 +230,8 @@ int DatabaseManager::saveMessage(const std::string &sender_nick, const std::stri
     sqlite3_bind_int(stmt, 2, sender_id);
     sqlite3_bind_text(stmt, 3, content.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 4, reply_to_id);
+    sqlite3_bind_text(stmt, 5, f_from.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, f_text.c_str(), -1, SQLITE_STATIC);
 
     if (stmt.step() != SQLITE_DONE)
         return -1;
