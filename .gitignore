@@ -19,6 +19,8 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+build/
+bin/
  
 # =====================
 # Node.js / Electron UI
