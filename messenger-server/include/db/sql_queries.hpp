@@ -41,10 +41,9 @@ namespace SQL
         "content TEXT, "
         "is_edited INTEGER DEFAULT 0, "
         "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, "
-        "FOREIGN KEY (channel_id) REFERENCES channels(id), "
-        "FOREIGN KEY (sender_id) REFERENCES users(id), "
         "reply_to_id INTEGER DEFAULT 0, "
-        ""
+        "FOREIGN KEY (channel_id) REFERENCES channels(id), "
+        "FOREIGN KEY (sender_id) REFERENCES users(id)"
         ");";
 
     constexpr const char *CREATE_INDEXES =
