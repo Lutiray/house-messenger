@@ -6,7 +6,7 @@
 
 int main()
 {
-    DatabaseManager db("messenger.db");
+    DatabaseManager db("data/messenger.db");
 
     if (db.open())
     {
