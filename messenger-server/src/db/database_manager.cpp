@@ -7,10 +7,28 @@
 #include <random>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
+#include <iostream>
+#include <sqlite3.h>
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
-DatabaseManager::DatabaseManager(const std::string &_path) : _path(_path), _db(nullptr) {}
+DatabaseManager::DatabaseManager(const std::string &_path) : _path(_path), _db(nullptr) 
+{
+    try {
+        fs::path path_obj(_path);
+        fs::path parent_dir = path_obj.parent_path();
+
+        if (!parent_dir.empty() && !fs::exists(parent_dir)) {
+            fs::create_directories(parent_dir);
+            Logger::info("Created directory for database: " + parent_dir.string());
+        }
+    } 
+    catch (const std::exception& e) {
+        Logger::error("Filesystem error while checking DB path: " + std::string(e.what()));
+    }
+}
 
 DatabaseManager::~DatabaseManager()
 {
@@ -25,6 +43,8 @@ bool DatabaseManager::open()
         Logger::error("Cant't open database: " + std::string(sqlite3_errmsg(_db)));
         return (false);
     }
+
+    Logger::info("Successfully connected to database at: " + _path);
 
     sqlite3_exec(_db, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
     sqlite3_exec(_db, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
