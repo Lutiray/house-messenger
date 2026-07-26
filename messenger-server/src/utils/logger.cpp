@@ -51,7 +51,7 @@ void Logger::log(Level level, const std::string &msg)
     }
     std::cout << line << "\033[0m" << std::endl;
 
-    static std::ofstream log_file("server_log.txt", std::ios::app);
+    static std::ofstream log_file("data/server_log.txt", std::ios::app);
     if (log_file.is_open())
     {
         log_file << line << "\n";
